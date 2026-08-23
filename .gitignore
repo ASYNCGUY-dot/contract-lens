@@ -1,0 +1,27 @@
+# 비밀정보 — 절대 커밋 금지
+.env
+.env.*
+!.env.example
+*.bak
+*.key
+
+# 파이썬
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# 노드
+node_modules/
+dist/
+
+# 데이터·산출물 (용량)
+data/raw/
+*.db
+*.sqlite3
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
