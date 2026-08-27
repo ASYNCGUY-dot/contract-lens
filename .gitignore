@@ -25,3 +25,4 @@ data/raw/
 # OS
 .DS_Store
 Thumbs.db
+_items.json
