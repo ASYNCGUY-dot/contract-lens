@@ -81,7 +81,7 @@ def main():
     for r in rows:
         v = (r.get("정답") or "").strip()
         if v:
-            k = v if v in SPECIAL else "유형지정"
+            k = v if v in SPECIAL else "조문지정"
             counts[k] = counts.get(k, 0) + 1
 
     print(f"{hit}개 반영 → {EVAL.relative_to(ROOT)}")
