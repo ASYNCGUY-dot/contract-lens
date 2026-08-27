@@ -26,3 +26,7 @@ data/raw/
 .DS_Store
 Thumbs.db
 _items.json
+
+# 오피스 프로그램 잠금 파일
+.~lock.*#
+~$*
