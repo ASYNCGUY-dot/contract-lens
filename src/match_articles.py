@@ -22,6 +22,13 @@ A는 넓게 잘 잡고(Top-3 94.5%) B는 좁게 잘 고른다(Top-1 70.9%). 순�
 - **조 제목을 유형 쪽에 붙이면 오히려 나빠진다** (61.8%). 입력에만 넣는다.
 - 제11조 흡수가 12/19 → 5/16으로 줄었다. 유형을 이어붙이지 않은 효과다.
 
+## 문서 메타 조항은 한 단계 낮춘다
+
+목적·정의처럼 계약 내용이 아니라 문서 자체를 설명하는 조항은 어느 약관에나 있고
+늘 비슷하게 쓰여서, 내용과 무관하게 점수가 뜬다(목적 0.5743 대 정의 0.4591).
+실측상 '높음'에 섞인 오탐이 6건에서 1건으로 줄고, 대신 1건이 높음에서 참고로 내려갔다.
+**지우지 않고 낮추기만 한다.**
+
 ## 임계값 — 자르지 않고 등급을 나눈다
 
 **결정(2026-08-27): 놓치는 것을 최소화한다.** 이 서비스는 판정하지 않고 근거만 보여주므로
@@ -56,9 +63,21 @@ LAW_TYPES = ROOT / "data" / "laws" / "약관규제법_유형.json"
 DEFAULT_FLOOR = 0.43       # 이 아래는 보여주지 않는다
 STRONG = 0.50              # 이 위는 '높음', 사이는 '참고'
 
+# 계약 내용이 아니라 문서 자체를 설명하는 조항. 목적·정의 조항은 어느 약관에나
+# 있고 늘 비슷하게 쓰여서, 실제 내용과 무관하게 점수가 뜬다(목적 0.57 대 정의 0.46).
+# 이 목록은 새로 만든 것이 아니라 build_eval_v2.py 가 무관계열 표본을 뽑을 때
+# 쓴 것과 같다. 실측: '높음'에 섞인 오탐 6건 → 1건, 대신 1건이 높음에서 참고로 내려갔다.
+# **지우지 않고 한 단계 낮추기만 한다.** 판정하지 않는다는 원칙이 여기에도 적용된다.
+META_TITLE = ["목적", "정의", "용어", "재검토기한", "시행", "적용범위", "이용시간", "유효기간"]
 
-def grade(score: float) -> str:
-    return "높음" if score >= STRONG else "참고"
+
+def is_meta(title: str) -> bool:
+    return any(w in (title or "") for w in META_TITLE)
+
+
+def grade(score: float, meta: bool = False) -> str:
+    g = "높음" if score >= STRONG else "참고"
+    return "참고" if (meta and g == "높음") else g
 
 
 class ArticleMatcher:
@@ -98,6 +117,7 @@ class ArticleMatcher:
         """
         from match_clauses import encode
 
+        meta = is_meta(title)
         q = encode([f"{title}. {body}"])[0]
         wide = self._wide @ q
         order = np.argsort(-wide)[:top_k]
@@ -106,7 +126,10 @@ class ArticleMatcher:
         narrow = self._narrow_by_article(q)
         cands.sort(key=lambda a: -narrow[self.arts.index(a)])   # 2단계 재정렬
 
+        # 메타 조항은 바닥도 한 단계 올린다 — '참고'였던 것은 안 보여준다
         f = DEFAULT_FLOOR if floor is None else floor
+        if meta and floor is None:
+            f = STRONG
         out = []
         for a in cands:
             k = self.arts.index(a)
@@ -116,7 +139,7 @@ class ArticleMatcher:
                 "조": a,
                 "인용": f"약관의 규제에 관한 법률 제{a}조",
                 "제목": self.titles[a],
-                "등급": grade(float(wide[k])),
+                "등급": grade(float(wide[k]), meta),
                 "넓은점수": round(float(wide[k]), 4),
                 "좁은점수": round(float(narrow[k]), 4),
                 "유형": [t["유형"] for t in self.types if str(t["조"]) == a],
