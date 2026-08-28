@@ -189,11 +189,18 @@ textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 .candbtn .ctitle { grid-column: 2; }
 .chev { grid-row: span 2; align-self: center; color: var(--accent); font-size: 12px; white-space: nowrap; }
 .cands li.open { border-color: var(--accent); }
-.artbox { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line); }
+/* 조문 원문은 카드 **전체 폭**을 쓴다. 좁은 칸에 넣으면 한 글자씩 줄바꿈되어
+   읽을 수가 없다(실측: 우측 칸 폭에서 세로로 눌림). */
+.artfull {
+  grid-column: 1 / -1; border-top: 1px solid var(--line);
+  background: var(--bg); padding: 16px 20px;
+}
+.artbox { }
 .artsrc { margin: 0 0 8px; font-size: 11.5px; color: var(--dim); }
 .artbody { margin: 0 0 10px; font-size: 13px; line-height: 1.75; }
 .arthos { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 7px; }
-.arthos li { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: baseline; }
+.arthos li { display: grid; grid-template-columns: auto 1fr auto; gap: 8px 10px; align-items: baseline; }
+.arthos li span:nth-child(2) { min-width: 0; word-break: keep-all; }
 .hono { color: var(--dim); font-size: 12px; font-weight: 600; }
 .arthos li span:nth-child(2) { font-size: 12.5px; line-height: 1.7; }
 .hoeff {
@@ -225,3 +232,9 @@ textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
   .arthos li { grid-template-columns: auto 1fr; }
   .hoeff { grid-column: 2; justify-self: start; margin-top: 2px; }
 }
+
+/* 긴 조항 본문의 '전체 보기' 링크 */
+.left .link { margin-top: 8px; display: inline-block; }
+/* 조문 원문 안에서는 줄이 넉넉해야 읽힌다 */
+.artfull .artbody { font-size: 13.5px; }
+.artfull .arthos li span:nth-child(2) { font-size: 13px; }

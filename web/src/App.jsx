@@ -195,15 +195,25 @@ function ArticleText({ art }) {
   );
 }
 
+const LONG = 320;   // 이보다 길면 접는다. 조항 하나가 화면을 다 먹으면 대조가 안 된다.
+
 function Clause({ c, laws }) {
   const s = stateOf(c);
   const [open, setOpen] = useState(null);
+  const [more, setMore] = useState(false);
+  const long = c.본문.length > LONG;
+  const shown = long && !more ? c.본문.slice(0, LONG) + "…" : c.본문;
   return (
     <article className={`clause ${s}`}>
       <div className="left">
-        <div className="cno">{c.조}</div>
-        <h3 className="ct">{c.제목 || "(제목 없음)"}</h3>
-        <p className="cb">{c.본문}</p>
+        {c.제목 && <div className="cno">{c.조}</div>}
+        <h3 className="ct">{c.제목 || c.조}</h3>
+        <p className="cb">{shown}</p>
+        {long && (
+          <button className="link" onClick={() => setMore(!more)}>
+            {more ? "본문 접기" : `본문 전체 보기 (${c.본문.length.toLocaleString()}자)`}
+          </button>
+        )}
       </div>
       <div className="right">
         <div className={`badge ${s}`}>
@@ -223,7 +233,6 @@ function Clause({ c, laws }) {
                     {open === x.순위 ? "접기" : "조문 원문 보기"}
                   </span>
                 </button>
-                {open === x.순위 && <ArticleText art={laws?.[x.조]} />}
               </li>
             ))}
           </ul>
@@ -235,6 +244,11 @@ function Clause({ c, laws }) {
         )}
         {s === "skip" && <p className="msg">{c.건너뜀}</p>}
       </div>
+      {open !== null && (
+        <div className="artfull">
+          <ArticleText art={laws?.[c.후보.find((x) => x.순위 === open)?.조]} />
+        </div>
+      )}
     </article>
   );
 }
