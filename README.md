@@ -1,4 +1,4 @@
-# 조항대조 / ClauseLedger
+# 계약서 돋보기 / Contract Lens
 
 동아AI랩 3기 3차 프로젝트 **V1-2 트랙**. 공익 목적.
 
@@ -72,7 +72,7 @@
 | 트랙 | 위치 | 담당 | 주제 |
 |---|---|---|---|
 | V1 | `Desktop\DONGA AI LAB\DONGA KDT 3RD PROJECT\_persnal V1` | Codex | 근거영수증 / ClaimLedger — 건기식 광고 검증 |
-| **V1-2** | **이 폴더** | **Claude Code** | 조항대조 / ClauseLedger — 계약서 조항 대조 |
+| **V1-2** | **이 폴더** | **Claude Code** | 계약서 돋보기 / Contract Lens — 계약서 조항 대조 |
 
 - **서로의 폴더를 건드리지 않는다.** V1은 Codex 샌드박스 계정 소유라 이 세션에서 git 조작이 거부된다.
 - 공유하는 것은 `C:\WORK\WORK\.env`의 API 키뿐이다. 코드·리포·문서는 완전 별개.

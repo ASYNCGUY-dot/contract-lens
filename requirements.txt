@@ -1,4 +1,4 @@
-# 조항대조 (ClauseLedger) — 실행에 필요한 것만.
+# 계약서 돋보기 (Contract Lens) — 실행에 필요한 것만.
 # 설치:  pip install -r requirements.txt
 # 파이썬 3.11 이상에서 확인했다.
 

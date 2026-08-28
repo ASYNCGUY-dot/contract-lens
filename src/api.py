@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-조항대조 API — 약관 텍스트를 받아 조항마다 관련 조문을 나란히 놓아 돌려준다.
+계약서 돋보기 API — 약관 텍스트를 받아 조항마다 관련 조문을 나란히 놓아 돌려준다.
 
 **이 API는 불공정 여부를 판정하지 않는다.** 관련 조문과 확신도 등급을 대고
 원문을 나란히 놓는 데서 멈춘다. 응답의 `고지` 필드에 그 내용을 함께 실어
@@ -47,7 +47,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="조항대조 (ClauseLedger)",
+    title="계약서 돋보기 (Contract Lens)",
     description="약관 조항에 약관규제법 조문을 나란히 놓습니다. 판정하지 않습니다.",
     version="0.1.0",
     lifespan=lifespan,
@@ -86,7 +86,7 @@ class AnalyzeOut(BaseModel):
 
 @app.get("/")
 def root():
-    return {"이름": "조항대조 (ClauseLedger)",
+    return {"이름": "계약서 돋보기 (Contract Lens)",
             "설명": "약관 조항에 약관규제법 조문을 나란히 놓습니다. 판정하지 않습니다.",
             "사용법": "POST /analyze 에 {\"text\": \"약관 전문\"} 을 보내세요.",
             "문서": "/docs", "고지": 고지}
