@@ -53,7 +53,12 @@ LAW_WORD = re.compile(r"(약관의 규제에 관한 법률|약관규제법|신�
 LAW_TAIL = re.compile(r"(무효로 한다|무효이다|무효로 본다|추정한다)\s*[.]?$")
 END = re.compile(r"(한다|아니한다|아니하다|없다|있다|본다|진다|된다)\s*[.]?$")
 
-LAW_SIM = 0.85     # 법 유형과 이만큼 비슷하면 법 조문 인용으로 본다
+LAW_SIM = 0.85     # 제6~14조 유형과 이만큼 비슷하면 법 조문 인용으로 본다
+# 유형 목록은 제6~14조뿐이라 제3·4·5조 조문이 그대로 통과했다(실측 6건).
+# 그래서 **법 전문 105문장**과도 대조한다. 0.75~0.80 구간이 비어 있어 경계가 깨끗하고,
+# 이 선에서 걸리는 6건은 전부 법 조문이며 실제 약관은 하나도 걸리지 않는다.
+FULL_LAW_SIM = 0.75
+FULL_LAW = ROOT / "data" / "laws" / "약관규제법_전문.json"
 DUP_SIM = 0.90     # 이만큼 비슷하면 같은 조항으로 본다
 
 
@@ -89,6 +94,19 @@ def main():
     keep = [i for i in range(len(items)) if maxsim[i] < LAW_SIM]
     print(f"  법 조문 인용 제외 (유형 유사도 {LAW_SIM} 이상)  → {len(keep)}개"
           f"  [{len(items) - len(keep)}개 제외]")
+
+    # 1-b) 법 전문과 대조 — 유형 목록에 없는 제1~5조·부칙 조문을 여기서 잡는다
+    if FULL_LAW.exists():
+        full = [x["내용"] for x in
+                json.loads(FULL_LAW.read_text(encoding="utf-8"))["문장"]]
+        F = encode(full)
+        sim2 = (V[keep] @ F.T).max(axis=1)
+        keep2 = [k for k, sm in zip(keep, sim2) if sm < FULL_LAW_SIM]
+        print(f"  법 전문 대조 제외 (유사도 {FULL_LAW_SIM} 이상)      → {len(keep2)}개"
+              f"  [{len(keep) - len(keep2)}개 제외]")
+        keep = keep2
+    else:
+        print("  [!] 약관규제법_전문.json 이 없습니다. fetch_full_law.py 를 먼저 도세요.")
 
     # 2) 같은 조항 묶기 — 판례가 달라도 같은 약관을 다툰 경우가 많다
     V2 = V[keep]
