@@ -7,6 +7,7 @@
 보내므로, 화면을 만드는 쪽이 이를 지우지 말 것.
 
     POST /analyze   {"text": "제1조 (목적) ..."}   조항별 관련 조문
+    GET  /articles  약관규제법 제7~14조 원문 (조 본문 + 각 호)
     GET  /health    모델 적재 상태
     GET  /          사용법
 
@@ -31,6 +32,8 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 MAX_CHARS = 200_000        # A4 약 60장. 이보다 크면 거절한다.
+LAW_FULL = ROOT / "data" / "laws" / "약관규제법_전문.json"
+LAW_TYPES = ROOT / "data" / "laws" / "약관규제법_유형.json"
 
 고지 = ("이 결과는 관련 가능성이 있는 조문을 제시할 뿐 불공정 여부를 판정하지 않습니다. "
         "순서는 관련 가능성 추정이며 1순위가 정답이라는 뜻이 아닙니다"
@@ -101,6 +104,52 @@ def root():
             "설명": "약관 조항에 약관규제법 조문을 나란히 놓습니다. 판정하지 않습니다.",
             "사용법": "POST /analyze 에 {\"text\": \"약관 전문\"} 을 보내세요.",
             "문서": "/docs", "고지": 고지}
+
+
+def _articles() -> dict:
+    """
+    조문 원문을 조립한다. 조 본문과 각 호가 **다른 파일에 있다.**
+
+    전문 파일(`약관규제법_전문.json`)에는 조 본문("...조항은 무효로 한다")만 있고
+    각 호는 유형 파일에 있다. 사용자가 판단하려면 둘 다 봐야 하므로 합쳐서 준다.
+
+    **효력을 호마다 밝힌다.** 제6조 2항만 '추정'이고 나머지는 '무효'인데,
+    뭉뚱그리면 실제 법보다 강하게 말하게 된다(1번 모듈).
+    """
+    import json as _json
+    full = _json.loads(LAW_FULL.read_text(encoding="utf-8"))["문장"]
+    types = _json.loads(LAW_TYPES.read_text(encoding="utf-8"))["유형"]
+
+    body = {}
+    for x in full:
+        a = str(x.get("조") or "")
+        if a.isdigit() and 7 <= int(a) <= 14:
+            t = x["내용"]
+            # "제7조(면책조항의 금지) " 접두사는 제목으로 따로 주므로 뗀다
+            i = t.find(") ")
+            body[a] = t[i + 2:] if t.startswith("제") and 0 < i < 30 else t
+
+    out = {}
+    for t in types:
+        a = str(t["조"])
+        if not (7 <= t["조"] <= 14):
+            continue
+        d = out.setdefault(a, {
+            "인용": f"약관의 규제에 관한 법률 제{a}조",
+            "제목": t["조제목"],
+            "본문": body.get(a, ""),
+            "호": [],
+        })
+        d["호"].append({"번호": t.get("호"), "내용": t["유형"], "효력": t.get("효력")})
+    for d in out.values():
+        d["호"].sort(key=lambda h: (h["번호"] is None, h["번호"] or 0))
+    return out
+
+
+@app.get("/articles")
+def articles():
+    """조문은 바뀌지 않으므로 화면에서 한 번만 받아 캐시하면 된다."""
+    return _articles()
 
 
 @app.get("/health")

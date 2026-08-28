@@ -70,6 +70,22 @@ def test_no_confidence_label_leaks():
         assert "1순위가 정답이라는 뜻이 아닙니다" in d["고지"]
 
 
+def test_articles_have_body_and_items():
+    """
+    조문 원문은 조 본문과 각 호가 **다른 파일에 있어** 합쳐야 완전해진다.
+    한쪽만 나오면 사용자가 판단할 수 없으므로 둘 다 있는지 잰다.
+    """
+    with TestClient(app) as c:
+        d = c.get("/articles").json()
+        assert set(d) == {"7", "8", "9", "10", "11", "12", "13", "14"}
+        a = d["7"]
+        assert a["제목"] == "면책조항의 금지"
+        assert "무효로 한다" in a["본문"]          # 조 본문
+        assert len(a["호"]) == 4                    # 각 호
+        assert a["호"][0]["번호"] == 1
+        assert all(h["효력"] for h in a["호"])      # 무효/추정 구분이 살아 있어야 한다
+
+
 def test_rejects_empty_and_oversize():
     with TestClient(app) as c:
         assert c.post("/analyze", json={"text": "   "}).status_code == 400

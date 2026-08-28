@@ -19,6 +19,16 @@ export async function analyze(text) {
   return r.json();
 }
 
+// 조문은 바뀌지 않으므로 한 번만 받아 캐시한다.
+let _articles = null;
+export async function articles() {
+  if (_articles) return _articles;
+  const r = await fetch(`${BASE}/articles`);
+  if (!r.ok) throw new Error("조문 원문을 불러오지 못했습니다.");
+  _articles = await r.json();
+  return _articles;
+}
+
 export async function health() {
   try {
     const r = await fetch(`${BASE}/health`);

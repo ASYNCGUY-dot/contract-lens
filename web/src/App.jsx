@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { analyze, health } from "./api";
+import { analyze, articles, health } from "./api";
 import "./App.css";
 
 const NAME = "계약서 돋보기";
@@ -117,8 +117,30 @@ function Summary({ data }) {
   );
 }
 
-function Clause({ c }) {
+// 법 조문 원문. **여기 "무효로 한다"는 법이 그렇게 쓰여 있는 것이지
+// 이 서비스의 판정이 아니다.** 그 구분이 흐려지지 않게 출처를 함께 밝힌다.
+function ArticleText({ art }) {
+  if (!art) return <p className="msg">조문 원문을 불러오는 중입니다…</p>;
+  return (
+    <div className="artbox">
+      <p className="artsrc">아래는 법 조문 원문입니다 — {art.인용}({art.제목})</p>
+      <p className="artbody">{art.본문}</p>
+      <ol className="arthos">
+        {art.호.map((h) => (
+          <li key={h.번호}>
+            <span className="hono">{h.번호}.</span>
+            <span>{h.내용}</span>
+            {h.효력 && <em className="hoeff">{h.효력}</em>}
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+function Clause({ c, laws }) {
   const s = stateOf(c);
+  const [open, setOpen] = useState(null);
   return (
     <article className={`clause ${s}`}>
       <div className="left">
@@ -133,10 +155,18 @@ function Clause({ c }) {
         {s === "found" && (
           <ul className="cands">
             {c.후보.map((x) => (
-              <li key={x.순위}>
-                <span className="rank">후보 {x.순위}</span>
-                <span className="cite">{x.인용}</span>
-                <span className="ctitle">{x.제목}</span>
+              <li key={x.순위} className={open === x.순위 ? "open" : ""}>
+                <button className="candbtn"
+                        aria-expanded={open === x.순위}
+                        onClick={() => setOpen(open === x.순위 ? null : x.순위)}>
+                  <span className="rank">후보 {x.순위}</span>
+                  <span className="cite">{x.인용}</span>
+                  <span className="ctitle">{x.제목}</span>
+                  <span className="chev" aria-hidden="true">
+                    {open === x.순위 ? "접기" : "조문 원문 보기"}
+                  </span>
+                </button>
+                {open === x.순위 && <ArticleText art={laws?.[x.조]} />}
               </li>
             ))}
           </ul>
@@ -152,7 +182,7 @@ function Clause({ c }) {
   );
 }
 
-function ResultView({ data }) {
+function ResultView({ data, laws }) {
   const [filter, setFilter] = useState("all");
   const st = useMemo(() => data.조항.map(stateOf), [data]);
   const counts = {
@@ -183,7 +213,7 @@ function ResultView({ data }) {
       </div>
 
       <div className="clauses">
-        {shown.map((c, i) => <Clause key={`${c.조}-${i}`} c={c} />)}
+        {shown.map((c, i) => <Clause key={`${c.조}-${i}`} c={c} laws={laws} />)}
         {shown.length === 0 && <p className="msg pad">해당하는 조항이 없습니다.</p>}
       </div>
 
@@ -213,8 +243,13 @@ export default function App() {
   const [err, setErr] = useState("");
   const [apiUp, setApiUp] = useState(true);
   const [dark, setDark] = useState(false);
+  const [laws, setLaws] = useState(null);
 
   useEffect(() => { health().then(setApiUp); }, []);
+  // 조문은 고정이라 결과가 나오면 한 번만 받아둔다.
+  useEffect(() => {
+    if (data && !laws) articles().then(setLaws).catch(() => {});
+  }, [data, laws]);
   useEffect(() => {
     document.documentElement.dataset.theme = dark ? "dark" : "light";
   }, [dark]);
@@ -238,7 +273,7 @@ export default function App() {
         {tab === "input"
           ? <InputView text={text} setText={setText} onRun={run}
                        busy={busy} err={err} apiUp={apiUp} />
-          : data && <ResultView data={data} />}
+          : data && <ResultView data={data} laws={laws} />}
       </main>
       <footer className="ftr">
         <span>{NAME} · {SUB}</span>
