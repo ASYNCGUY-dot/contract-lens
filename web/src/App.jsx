@@ -191,6 +191,24 @@ function ArticleText({ art }) {
           </li>
         ))}
       </ol>
+
+      {art.호?.[0]?.효력설명 && (
+        <p className="effnote">※ {art.호[0].효력설명}</p>
+      )}
+
+      {art.용어?.length > 0 && (
+        <div className="terms">
+          <p className="termhead">이 조문에 나오는 말</p>
+          <dl>
+            {art.용어.map((t) => (
+              <div key={t.말}>
+                <dt>{t.말}</dt>
+                <dd>{t.뜻}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      )}
     </div>
   );
 }
@@ -229,6 +247,9 @@ function Clause({ c, laws }) {
                   <span className="rank">후보 {x.순위}</span>
                   <span className="cite">{x.인용}</span>
                   <span className="ctitle">{x.제목}</span>
+                  {laws?.[x.조]?.안내 && (
+                    <span className="cguide">{laws[x.조].안내}</span>
+                  )}
                   <span className="chev" aria-hidden="true">
                     {open === x.순위 ? "접기" : "조문 원문 보기"}
                   </span>

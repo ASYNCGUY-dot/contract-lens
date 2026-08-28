@@ -34,6 +34,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 MAX_CHARS = 200_000        # A4 약 60장. 이보다 크면 거절한다.
 LAW_FULL = ROOT / "data" / "laws" / "약관규제법_전문.json"
 LAW_TYPES = ROOT / "data" / "laws" / "약관규제법_유형.json"
+LAW_GUIDE = ROOT / "data" / "laws" / "조문_해설.json"
 
 고지 = ("이 결과는 관련 가능성이 있는 조문을 제시할 뿐 불공정 여부를 판정하지 않습니다. "
         "순서는 관련 가능성 추정이며 1순위가 정답이라는 뜻이 아닙니다"
@@ -147,6 +148,18 @@ def _articles() -> dict:
                        "내용": t["유형"], "효력": t.get("효력")})
     for d in out.values():
         d["호"].sort(key=lambda h: (h["번호"] is None, h["번호"] or 0))
+
+    # 일반인이 조문을 읽을 수 있게 돕는 안내를 붙인다.
+    # **법령 원문이 아니라 사람이 쓴 요약이다.** 화면에서도 그 사실을 밝힌다.
+    if LAW_GUIDE.exists():
+        g = _json.loads(LAW_GUIDE.read_text(encoding="utf-8"))
+        for a, d in out.items():
+            d["안내"] = g["조문"].get(a)
+            # 용어는 그 조문에 실제로 나오는 것만 준다. 전부 주면 읽을 것이 늘기만 한다.
+            blob = d["본문"] + " ".join(h["내용"] for h in d["호"])
+            d["용어"] = [{"말": w, "뜻": v} for w, v in g["용어"].items() if w in blob]
+            for h in d["호"]:
+                h["효력설명"] = g["효력설명"].get(h["효력"])
     return out
 
 

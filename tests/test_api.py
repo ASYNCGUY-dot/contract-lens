@@ -113,6 +113,31 @@ def test_articles_have_body_and_items():
         assert all(h["효력"] for h in a["호"])      # 무효/추정 구분이 살아 있어야 한다
 
 
+def test_plain_language_guide():
+    """
+    법 조문만 보여주면 일반인은 읽을 수 없다. 쉬운 안내와 용어 풀이가 함께 와야 한다.
+
+    **안내는 주제만 말하고 유불리를 판단하지 않는다.** '무효' 설명도 마찬가지로,
+    법이 그런 조항을 무효로 정한다는 뜻이지 지금 보는 계약서가 무효라는 뜻이
+    아님을 밝혀야 한다. 이 문구가 빠지면 서비스가 판정하는 것처럼 읽힌다.
+    """
+    with TestClient(app) as c:
+        d = c.get("/articles").json()
+        a = d["12"]
+        assert a["안내"] and len(a["안내"]) > 20
+        assert "의사표시" in [t["말"] for t in a["용어"]]
+        note = a["호"][0]["효력설명"]
+        assert "무효라는 뜻이 아닙니다" in note
+        assert "**" not in note              # 화면은 마크다운을 렌더링하지 않는다
+        # 안내가 판정하지 않는지. 명사가 아니라 **단정형 서술**을 잡는다.
+        # "위험"은 법 조문 자체의 표현이다(제7조 2호 "부담하여야 할 위험을
+        # 고객에게 떠넘기는 조항"). 명사를 금지하면 조문을 옮길 수가 없다.
+        for a2 in d.values():
+            for bad in ("불공정합니다", "무효입니다", "위험합니다", "주의하세요",
+                        "문제가 있습니다", "불리합니다"):
+                assert bad not in a2["안내"], f"{bad} 가 안내에 있다"
+
+
 def test_rejects_empty_and_oversize():
     with TestClient(app) as c:
         assert c.post("/analyze", json={"text": "   "}).status_code == 400
