@@ -140,7 +140,11 @@ def _articles() -> dict:
             "본문": body.get(a, ""),
             "호": [],
         })
-        d["호"].append({"번호": t.get("호"), "내용": t["유형"], "효력": t.get("효력")})
+        # 호 번호는 원본이 문자열이다. 그대로 두면 정렬이 문자열 기준이 되어
+        # 호가 10개를 넘는 조에서 "10"이 "2"보다 앞에 온다. 숫자로 바꿔 담는다.
+        no = t.get("호")
+        d["호"].append({"번호": int(no) if str(no).isdigit() else None,
+                       "내용": t["유형"], "효력": t.get("효력")})
     for d in out.values():
         d["호"].sort(key=lambda h: (h["번호"] is None, h["번호"] or 0))
     return out
