@@ -32,6 +32,7 @@ LLM 호출은 조항당 한 번씩 돈과 시간을 쓴다. 그런데 9번 모�
 from __future__ import annotations
 
 import operator
+import re
 import sys
 from pathlib import Path
 from typing import Annotated, TypedDict
@@ -42,7 +43,37 @@ from langgraph.types import Send
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+# 조 번호로 시작하는 줄 = 새 조항의 시작
+ART_START = re.compile(r"^제\s*\d+\s*조")
+
 _matcher = None
+
+
+def to_paragraphs(text: str) -> list[str]:
+    """
+    원문 텍스트를 조 단위 문단으로 만든다.
+
+    **실제 계약서는 조 제목과 본문이 다른 줄에 있다.**
+
+        제 1 조(목적)
+        본 약관은 "코드알파"가 제공하는 모든 서비스의 이용조건 및 절차를…
+
+    줄 단위로 그냥 나누면 제목 줄은 본문이 0자가 되고, 본문 줄은 조 번호가 없어
+    버려진다. 실제 약관을 넣었더니 조항 0개가 나온 것이 이 때문이었다.
+    평가 세트(표준약관)는 한 줄에 다 들어 있어 이 형식을 보지 못했다.
+
+    그래서 **조 번호로 시작하는 줄에서만 끊고**, 그 뒤 줄들은 앞 조항에 이어붙인다.
+    """
+    out: list[str] = []
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+        if ART_START.match(line) or not out:
+            out.append(line)
+        else:
+            out[-1] = f"{out[-1]} {line}"
+    return out
 
 
 def matcher():

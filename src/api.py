@@ -169,9 +169,8 @@ def analyze(body: AnalyzeIn):
     if len(text) > MAX_CHARS:
         raise HTTPException(413, f"{MAX_CHARS:,}자를 넘습니다 (현재 {len(text):,}자).")
 
-    from pipeline import run
-    paras = [x.strip() for x in text.split("\n") if x.strip()]
-    r = run(paras, "업로드", llm=body.llm)
+    from pipeline import run, to_paragraphs
+    r = run(to_paragraphs(text), "업로드", llm=body.llm)
 
     return AnalyzeOut(
         조항수=r["조항"], 뚜렷함=r["뚜렷함"], 관련없음=r["관련없음"],
