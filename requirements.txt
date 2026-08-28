@@ -1,0 +1,24 @@
+# 조항대조 (ClauseLedger) — 실행에 필요한 것만.
+# 설치:  pip install -r requirements.txt
+# 파이썬 3.11 이상에서 확인했다.
+
+# 파이프라인
+langgraph>=0.2
+langchain-core>=0.3
+
+# 임베딩 매칭 — 모델은 jhgan/ko-sroberta-multitask (4번 모듈에서 실측으로 선택)
+sentence-transformers>=3.0
+torch>=2.0
+numpy>=1.26
+
+# LLM 구조 추출 (선택 기능. OPENAI_API_KEY 필요)
+openai>=1.40
+python-dotenv>=1.0
+
+# API
+fastapi>=0.115
+uvicorn[standard]>=0.30
+pydantic>=2.8
+
+# 데이터 수집 (법령 API. 재수집할 때만 필요)
+requests>=2.31
