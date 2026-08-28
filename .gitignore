@@ -31,3 +31,6 @@ _items.json
 .~lock.*#
 ~$*
 _items_v2.json
+
+# ONNX 변환 결과 (441MB). build_onnx.py 로 언제든 다시 만든다.
+models/

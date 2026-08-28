@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+import os
+
 import json
 import sys
 from pathlib import Path
@@ -48,6 +50,13 @@ def get_model():
 
 
 def encode(texts: list[str], is_query: bool = False) -> np.ndarray:
+    # 배포 때는 ONNX 를 쓴다. torch 런타임이 빠져 프로세스가 711MB → 272MB 로 준다.
+    # **벡터는 원본과 완전히 같다(코사인 유사도 1.000000)** — 성능에 영향이 없다.
+    # 근거와 측정은 src/encode_onnx.py 를 볼 것.
+    if os.getenv("USE_ONNX") == "1":
+        from encode_onnx import encode as _onnx
+        return _onnx(list(texts))
+
     # e5 계열만 query:/passage: 접두어를 쓴다. ko-sroberta는 접두어 없이 학습돼서
     # 붙이면 오히려 방해가 된다. 모델을 바꾸면 전처리도 같이 바꿔야 한다.
     if "e5" in MODEL_ID.lower():
