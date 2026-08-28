@@ -32,6 +32,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 MAX_CHARS = 200_000        # A4 약 60장. 이보다 크면 거절한다.
 
 고지 = ("이 결과는 관련 가능성이 있는 조문을 제시할 뿐 불공정 여부를 판정하지 않습니다. "
+        "순서는 관련 가능성 추정이며 1순위가 정답이라는 뜻이 아닙니다"
+        "(실측 정확도: 1순위 41.7%, 3개 안에 포함 75.0%). "
         "법률 자문이 아니며, 실제 판단은 변호사 등 전문가의 검토가 필요합니다.")
 
 
@@ -58,10 +60,10 @@ class AnalyzeIn(BaseModel):
 
 
 class Candidate(BaseModel):
+    순위: int
     조: str
     인용: str
     제목: str
-    등급: str
     넓은점수: float
 
 
@@ -70,12 +72,13 @@ class ClauseOut(BaseModel):
     제목: str
     본문: str
     후보: list[Candidate]
+    건너뜀: str | None = None
     구조: dict | None = None
 
 
 class AnalyzeOut(BaseModel):
     조항수: int
-    높음: int
+    뚜렷함: int
     관련없음: int
     조항: list[ClauseOut]
     고지: str
@@ -107,12 +110,12 @@ def analyze(body: AnalyzeIn):
     r = run(paras, "업로드", llm=body.llm)
 
     return AnalyzeOut(
-        조항수=r["조항"], 높음=r["높음"], 관련없음=r["관련없음"],
+        조항수=r["조항"], 뚜렷함=r["뚜렷함"], 관련없음=r["관련없음"],
         조항=[ClauseOut(조=x["조"], 제목=x["제목"], 본문=x["본문"],
                        후보=[Candidate(**{k: c[k] for k in
-                                         ("조", "인용", "제목", "등급", "넓은점수")})
+                                         ("순위", "조", "인용", "제목", "넓은점수")})
                              for c in x["후보"]],
-                       구조=x.get("구조"))
+                       건너뜀=x.get("건너뜀"), 구조=x.get("구조"))
              for x in r["정렬"]],
         고지=고지,
     )

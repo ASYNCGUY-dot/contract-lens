@@ -46,17 +46,28 @@ def test_analyze_shape():
         assert d["조항수"] == 3
         assert "판정하지" in d["고지"]
         for x in d["조항"]:
-            for c2 in x["후보"]:
-                assert c2["등급"] in ("높음", "참고")
+            for i, c2 in enumerate(x["후보"], 1):
+                assert c2["순위"] == i          # 순위가 1부터 순서대로여야 한다
                 assert c2["인용"].startswith("약관의 규제에 관한 법률 제")
 
 
-def test_meta_clause_is_downgraded():
-    """목적 조항은 '높음'으로 올라오면 안 된다(11번 모듈)."""
+def test_meta_clause_is_skipped_with_reason():
+    """목적 조항은 대조하지 않고, 그 사실을 밝혀야 한다(16번)."""
     with TestClient(app) as c:
         d = c.post("/analyze", json={"text": SAMPLE}).json()
         purpose = next(x for x in d["조항"] if "목적" in x["제목"])
-        assert all(c2["등급"] != "높음" for c2 in purpose["후보"])
+        assert purpose["후보"] == []
+        assert purpose["건너뜀"]
+
+
+def test_no_confidence_label_leaks():
+    """확신도 표시를 없앤 결정(16번)이 되돌아가지 않게 막는다."""
+    with TestClient(app) as c:
+        d = c.post("/analyze", json={"text": SAMPLE}).json()
+        for x in d["조항"]:
+            for c2 in x["후보"]:
+                assert "등급" not in c2
+        assert "1순위가 정답이라는 뜻이 아닙니다" in d["고지"]
 
 
 def test_rejects_empty_and_oversize():

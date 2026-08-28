@@ -7,7 +7,7 @@
 
     parse      텍스트 → 조 단위 조항          (parse_clauses)
     match      조항마다 관련 조문 후보         (match_articles, 조항별 fan-out)
-    describe   '높음'인 것만 구조를 덧붙임      (extract_structure, 선택)
+    describe   상위 후보가 뚜렷할 때만 구조 덧붙임  (extract_structure, 선택)
     collect    결과 조립
 
 ## 왜 fan-out 인가
@@ -16,11 +16,12 @@
 의존하지 않으므로 갈라서 처리하고 리듀서로 합치는 편이 맞다. 복습 실습에서
 쓴 `Annotated[list, operator.add]`가 이 자리에 쓰인다.
 
-## 왜 구조 추출을 '높음'에만 부르는가
+## 왜 구조 추출을 일부에만 부르는가
 
 LLM 호출은 조항당 한 번씩 돈과 시간을 쓴다. 그런데 9번 모듈에서 확인했듯이
 구조는 **조문을 찾는 데는 도움이 안 되고, 찾은 뒤 보여주는 데만 쓸모가 있다.**
-관련 조문이 약하게 걸린 조항에까지 부를 이유가 없다.
+관련 조문이 약하게 걸린 조항에까지 부를 이유가 없어 1순위 점수가 0.50 이상일
+때만 부른다.
 
 실행:
     python src/pipeline.py --demo            내장 예시 약관으로
@@ -89,11 +90,15 @@ def n_match(t: ClauseTask) -> dict:
     if not body:
         return {"결과": []}
 
+    from match_articles import is_meta
     cands = matcher().match(title, body)
     item = {"조": c.get("표시"), "제목": title, "본문": body, "후보": cands}
+    if is_meta(title):
+        # 조용히 버리지 않는다. 왜 후보가 없는지 사용자가 알아야 한다.
+        item["건너뜀"] = "문서 자체를 설명하는 조항(목적·정의 등)이라 대조하지 않았습니다."
 
-    # 구조는 '높음'이 있을 때만. 근거를 보여주는 용도지 찾는 용도가 아니다(9번 모듈).
-    if t["llm"] and any(x["등급"] == "높음" for x in cands):
+    # 근거를 보여주는 용도지 찾는 용도가 아니다(9번 모듈).
+    if t["llm"] and cands and cands[0]["넓은점수"] >= 0.50:
         try:
             from extract_structure import extract, verify_quote
             st = extract(f"{title}. {body}")
@@ -107,10 +112,10 @@ def n_match(t: ClauseTask) -> dict:
 
 def n_collect(s: State) -> dict:
     res = sorted(s.get("결과", []), key=lambda x: x.get("조") or "")
-    hi = sum(1 for r in res if any(c["등급"] == "높음" for c in r["후보"]))
+    hi = sum(1 for r in res if r["후보"] and r["후보"][0]["넓은점수"] >= 0.50)
     none = sum(1 for r in res if not r["후보"])
     return {"결과": [], "요약": {**s.get("요약", {}), "조항": len(res),
-                              "높음": hi, "관련없음": none, "정렬": res}}
+                              "뚜렷함": hi, "관련없음": none, "정렬": res}}
 
 
 def build():
@@ -149,14 +154,19 @@ def main():
         paras, name = DEMO, "예시 약관"
 
     r = run(paras, name, llm)
-    print(f"\n{name} — 조항 {r['조항']}개 / 관련 조문 '높음' {r['높음']}개 / "
-          f"관련 조문 없음 {r['관련없음']}개\n")
+    print("")
+    print(f"{name} — 조항 {r['조항']}개 / 상위 후보가 뚜렷한 것 {r['뚜렷함']}개 / "
+          f"관련 조문 없음 {r['관련없음']}개")
+    print("  ※ 순서는 관련 가능성 추정이다. 1순위가 정답일 확률은 실측 41.7%다.")
+    print("")
     for x in r["정렬"]:
         print(f"  {x['조']} {x['제목']}")
-        if not x["후보"]:
+        if x.get("건너뜀"):
+            print(f"      건너뜀 — {x['건너뜀']}")
+        elif not x["후보"]:
             print("      관련 조문 없음")
         for c in x["후보"]:
-            print(f"      [{c['등급']}] {c['인용']} ({c['제목']})  {c['넓은점수']:.4f}")
+            print(f"      {c['순위']}순위  {c['인용']} ({c['제목']})  {c['넓은점수']:.4f}")
         if "구조" in x:
             s = x["구조"]
             print(f"      구조: {s.get('줄어드는쪽')}의 {s.get('줄어드는것')}가 줄어든다"

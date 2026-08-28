@@ -76,12 +76,14 @@ def main():
     print(f"  Top-1 {t1}/{len(pos)} = {t1/len(pos)*100:.1f}%   95% 구간 {lo1*100:.0f}~{hi1*100:.0f}%")
     print(f"  Top-3 {t3}/{len(pos)} = {t3/len(pos)*100:.1f}%   95% 구간 {lo3*100:.0f}~{hi3*100:.0f}%")
 
-    hp = sum(1 for r in pos if any(x["등급"] == "높음" for x in m.match("", r["본문"])))
-    hn = sum(1 for r in neg if any(x["등급"] == "높음" for x in m.match("", r["본문"])))
-    if hp + hn:
-        lo, hi = wilson(hp, hp + hn)
-        print(f"\n=== '높음' 정확도 ===")
-        print(f"  {hp}관련 / {hn}무관 = {hp/(hp+hn)*100:.1f}%   95% 구간 {lo*100:.0f}~{hi*100:.0f}%")
+    # 확신도 표시를 없앴으므로(16번) 재는 것도 바꾼다. 사용자가 헛것을 보는 비율이다.
+    sp = sum(1 for r in pos if m.match("", r["본문"]))
+    sn = sum(1 for r in neg if m.match("", r["본문"]))
+    if sp + sn:
+        lo, hi = wilson(sp, sp + sn)
+        print("")
+        print("=== 무언가 보여준 것 중 실제 관련 비율 ===")
+        print(f"  {sp}관련 / {sn}무관 = {sp/(sp+sn)*100:.1f}%   95% 구간 {lo*100:.0f}~{hi*100:.0f}%")
     shown = sum(1 for r in pos if m.match("", r["본문"]))
     print(f"  아무것도 안 보여준 관련 조항: {len(pos)-shown}/{len(pos)}")
 
