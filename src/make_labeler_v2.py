@@ -2,18 +2,24 @@
 """
 평가 세트 v2용 라벨링 도구. 9지선다(제7~14조 + 관련없음)라 v1보다 훨씬 빠르다.
 
-실행:  python src/make_labeler_v2.py
-출력:  data/eval/labeler_v2.html
+실행:  python src/make_labeler_v2.py        표준약관 세트(v2)
+       python src/make_labeler_v2.py v3     판례 인용 조항 세트(v3)
+출력:  data/eval/labeler_v2.html  또는  labeler_v3.html
+
+**저장 키를 버전마다 다르게 둔다.** 같은 키를 쓰면 브라우저에 남은 v2 라벨이
+v3 화면에 그대로 나타나 라벨이 섞인다.
 """
 
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SRC = ROOT / "data" / "eval" / "_items_v2.json"
-OUT = ROOT / "data" / "eval" / "labeler_v2.html"
+VER = "v3" if "v3" in sys.argv else "v2"
+SRC = ROOT / "data" / "eval" / f"_items_{VER}.json"
+OUT = ROOT / "data" / "eval" / f"labeler_{VER}.html"
 
 HTML = """<!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><title>조문 관련성 라벨링</title>
@@ -51,7 +57,7 @@ kbd{border:1px solid var(--line);border-radius:3px;padding:1px 5px;font-size:11p
 </style></head><body><div class="wrap" id="app"></div>
 <script>
 const DATA=__DATA__;
-const KEY='clauseledger_v2_labels';
+const KEY='clauseledger___VER___labels';
 let ans=JSON.parse(localStorage.getItem(KEY)||'{}');
 let i=Object.keys(ans).length;
 const save=()=>localStorage.setItem(KEY,JSON.stringify(ans));
@@ -105,9 +111,11 @@ render();
 
 def main():
     if not SRC.exists():
-        raise SystemExit("[!] data/eval/_items_v2.json 이 없습니다. build_eval_v2.py 를 먼저 돌리세요.")
-    OUT.write_text(HTML.replace("__DATA__", SRC.read_text(encoding="utf-8")), encoding="utf-8")
-    print(f"라벨링 도구 v2 → {OUT}")
+        raise SystemExit(f"[!] {SRC.name} 이 없습니다.")
+    html = (HTML.replace("__DATA__", SRC.read_text(encoding="utf-8"))
+                .replace("__VER__", VER))
+    OUT.write_text(html, encoding="utf-8")
+    print(f"라벨링 도구 {VER} → {OUT}  ({json.loads(SRC.read_text(encoding='utf-8'))['items'].__len__()}개)")
 
 
 if __name__ == "__main__":

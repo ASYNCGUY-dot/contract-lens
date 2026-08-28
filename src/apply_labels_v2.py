@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-라벨링 도구 v2가 뱉은 한 줄을 평가 세트 v2 CSV의 '정답' 칸에 반영한다.
+라벨링 도구가 뱉은 한 줄을 평가 세트 CSV의 '정답' 칸에 반영한다.
+
+    python src/apply_labels_v2.py    "1:7,2:관련없음,..."     표준약관 세트(v2)
+    python src/apply_labels_v2.py v3 "1:9,2:관련없음,..."     판례 인용 세트(v3)
 
 실행:
     python src/apply_labels_v2.py "1:7,2:관련없음,3:보류,..."
@@ -19,7 +22,12 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-EVAL = ROOT / "data" / "eval" / "eval_v2.csv"
+# 첫 인자가 v3 면 판례 인용 세트에 반영한다. 라벨을 엉뚱한 세트에 쓰면 조용히 망가지므로
+# 버전을 명시적으로 받는다.
+VER = "v3" if (len(sys.argv) > 1 and sys.argv[1] == "v3") else "v2"
+if VER == "v3":
+    sys.argv.pop(1)
+EVAL = ROOT / "data" / "eval" / f"eval_{VER}.csv"
 LAW_TYPES = ROOT / "data" / "laws" / "약관규제법_유형.json"
 
 SPECIAL = {"관련없음", "보류"}
