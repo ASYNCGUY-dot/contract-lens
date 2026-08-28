@@ -24,6 +24,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -51,6 +52,16 @@ app = FastAPI(
     description="약관 조항에 약관규제법 조문을 나란히 놓습니다. 판정하지 않습니다.",
     version="0.1.0",
     lifespan=lifespan,
+)
+
+
+# 화면(Vite 개발 서버)에서 부를 수 있어야 한다. 로컬 개발 주소만 연다.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173",
+                   "http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
 )
 
 

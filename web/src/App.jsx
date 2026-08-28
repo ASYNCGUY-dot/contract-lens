@@ -1,0 +1,249 @@
+import { useEffect, useMemo, useState } from "react";
+import { analyze, health } from "./api";
+import "./App.css";
+
+const NAME = "계약서 돋보기";
+const SUB = "Contract Lens";
+const MAX = 200000;
+
+const SAMPLE = `제1조 (목적) 이 약관은 회사가 제공하는 서비스의 이용조건을 정함을 목적으로 한다.
+제2조 (면책) 회사는 회원에게 발생한 어떠한 손해에 대하여도 일체 책임을 지지 아니한다.
+제3조 (관할법원) 이 약관에 관한 소송의 관할법원은 회사의 본점 소재지 법원으로 한다.
+제4조 (서비스 이용시간) 서비스는 연중무휴 1일 24시간 제공함을 원칙으로 한다.`;
+
+// 조항이 가질 수 있는 상태는 셋뿐이다. 색은 경고가 아니라 구분용으로만 쓴다.
+function stateOf(c) {
+  if (c.건너뜀) return "skip";
+  if (!c.후보 || c.후보.length === 0) return "none";
+  return "found";
+}
+
+const STATE_LABEL = {
+  found: "함께 볼 조문",
+  none: "관련 조문 없음",
+  skip: "대조하지 않음",
+};
+
+function Header({ tab, setTab, hasResult, dark, setDark }) {
+  return (
+    <header className="hdr">
+      <div className="brand">
+        <span className="mark" aria-hidden="true">◎</span>
+        <span className="bname">{NAME}</span>
+        <span className="bsub">{SUB}</span>
+      </div>
+      <nav className="tabs" role="tablist">
+        <button role="tab" aria-selected={tab === "input"}
+                className={tab === "input" ? "on" : ""}
+                onClick={() => setTab("input")}>입력</button>
+        <button role="tab" aria-selected={tab === "result"}
+                className={tab === "result" ? "on" : ""}
+                disabled={!hasResult}
+                onClick={() => setTab("result")}>결과</button>
+      </nav>
+      <button className="ghost" onClick={() => setDark(!dark)}
+              aria-label={dark ? "밝은 화면으로" : "어두운 화면으로"}>
+        {dark ? "☀" : "☾"}
+      </button>
+    </header>
+  );
+}
+
+function InputView({ text, setText, onRun, busy, err, apiUp }) {
+  return (
+    <section className="wrap narrow">
+      <h1 className="h1">약관을 붙여넣고<br />어떤 법 조문을 볼지 확인하세요</h1>
+      <p className="lead">
+        계약서나 약관 전문을 붙여넣으면 조항마다 관련 있어 보이는
+        약관규제법 조문을 나란히 놓아 드립니다.
+      </p>
+
+      <div className="card pad">
+        <div className="rowbetween">
+          <label className="lbl" htmlFor="ta">약관 전문</label>
+          <button className="link" onClick={() => setText(SAMPLE)}>예시 넣기</button>
+        </div>
+        <textarea id="ta" value={text} onChange={(e) => setText(e.target.value)}
+                  placeholder="여기에 약관 전문을 붙여넣어 주세요."
+                  maxLength={MAX} rows={10} />
+        <div className="rowbetween small">
+          <span>{text.length.toLocaleString()} / {MAX.toLocaleString()}자</span>
+          <span>조항 단위로 나누어 대조합니다</span>
+        </div>
+        {err && <p className="err" role="alert">{err}</p>}
+        <div className="rowend">
+          <button className="primary" onClick={onRun} disabled={busy || !text.trim()}>
+            {busy ? "대조하는 중…" : "관련 조문 살펴보기"}
+          </button>
+        </div>
+        {!apiUp && (
+          <p className="note">
+            분석 서버에 닿지 않습니다. 프로젝트 폴더에서
+            <code> uvicorn src.api:app --port 8000 </code>을 실행해 주세요.
+          </p>
+        )}
+      </div>
+
+      <div className="card pad promise">
+        <p className="lbl">이 서비스는</p>
+        <ul>
+          <li><b>관련 있어 보이는 법 조문을 나란히 제시합니다</b></li>
+          <li>불공정 여부를 판정하지 않습니다</li>
+          <li>무효인지 말하지 않습니다</li>
+          <li>점수나 등급을 매기지 않습니다</li>
+        </ul>
+      </div>
+    </section>
+  );
+}
+
+function Summary({ data }) {
+  const st = data.조항.map(stateOf);
+  const items = [
+    { k: "전체 조항", v: data.조항수, cls: "" },
+    { k: "관련 조문을 찾은 조항", v: st.filter((s) => s === "found").length, cls: "found" },
+    { k: "관련 조문 없음", v: st.filter((s) => s === "none").length, cls: "none" },
+    { k: "대조하지 않음", v: st.filter((s) => s === "skip").length, cls: "skip" },
+  ];
+  return (
+    <div className="summary">
+      {items.map((i) => (
+        <div key={i.k} className={`sm ${i.cls}`}>
+          <div className="smv">{i.v}</div>
+          <div className="smk">{i.k}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Clause({ c }) {
+  const s = stateOf(c);
+  return (
+    <article className={`clause ${s}`}>
+      <div className="left">
+        <div className="cno">{c.조}</div>
+        <h3 className="ct">{c.제목 || "(제목 없음)"}</h3>
+        <p className="cb">{c.본문}</p>
+      </div>
+      <div className="right">
+        <div className={`badge ${s}`}>
+          {STATE_LABEL[s]}{s === "found" ? ` ${c.후보.length}개` : ""}
+        </div>
+        {s === "found" && (
+          <ul className="cands">
+            {c.후보.map((x) => (
+              <li key={x.순위}>
+                <span className="rank">후보 {x.순위}</span>
+                <span className="cite">{x.인용}</span>
+                <span className="ctitle">{x.제목}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {s === "none" && (
+          <p className="msg">
+            약관규제법 제7조부터 제14조까지 대조했지만 관련성이 뚜렷한 조문이 없었습니다.
+          </p>
+        )}
+        {s === "skip" && <p className="msg">{c.건너뜀}</p>}
+      </div>
+    </article>
+  );
+}
+
+function ResultView({ data }) {
+  const [filter, setFilter] = useState("all");
+  const st = useMemo(() => data.조항.map(stateOf), [data]);
+  const counts = {
+    all: data.조항.length,
+    found: st.filter((s) => s === "found").length,
+    none: st.filter((s) => s === "none").length,
+    skip: st.filter((s) => s === "skip").length,
+  };
+  const shown = data.조항.filter((c, i) => filter === "all" || st[i] === filter);
+
+  return (
+    <section className="wrap">
+      <Summary data={data} />
+
+      <div className="notice">
+        <p>{data.고지}</p>
+      </div>
+
+      <div className="filters" role="tablist">
+        {[["all", "전체"], ["found", "관련 조문 있음"],
+          ["none", "관련 조문 없음"], ["skip", "대조하지 않음"]].map(([k, label]) => (
+          <button key={k} role="tab" aria-selected={filter === k}
+                  className={filter === k ? "on" : ""}
+                  onClick={() => setFilter(k)}>
+            {label} <span className="cnt">{counts[k]}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="clauses">
+        {shown.map((c, i) => <Clause key={`${c.조}-${i}`} c={c} />)}
+        {shown.length === 0 && <p className="msg pad">해당하는 조항이 없습니다.</p>}
+      </div>
+
+      <div className="legend">
+        <div className="lg found">
+          <b>관련 조문 있음</b>
+          <p>관련 있어 보이는 조문을 찾았습니다. 원문과 함께 살펴보세요.</p>
+        </div>
+        <div className="lg none">
+          <b>관련 조문 없음</b>
+          <p>제7~14조와 관련이 뚜렷한 조문을 찾지 못했습니다.</p>
+        </div>
+        <div className="lg skip">
+          <b>대조하지 않음</b>
+          <p>목적·정의 같은 문서 설명 조항이라 대조 대상에서 뺐습니다.</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+export default function App() {
+  const [tab, setTab] = useState("input");
+  const [text, setText] = useState("");
+  const [data, setData] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [apiUp, setApiUp] = useState(true);
+  const [dark, setDark] = useState(false);
+
+  useEffect(() => { health().then(setApiUp); }, []);
+  useEffect(() => {
+    document.documentElement.dataset.theme = dark ? "dark" : "light";
+  }, [dark]);
+
+  async function run() {
+    setBusy(true); setErr("");
+    try {
+      const d = await analyze(text);
+      setData(d); setTab("result");
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="app">
+      <Header tab={tab} setTab={setTab} hasResult={!!data} dark={dark} setDark={setDark} />
+      <main>
+        {tab === "input"
+          ? <InputView text={text} setText={setText} onRun={run}
+                       busy={busy} err={err} apiUp={apiUp} />
+          : data && <ResultView data={data} />}
+      </main>
+      <footer className="ftr">
+        <span>{NAME} · {SUB}</span>
+        <span>법률 자문이 아닌 정보 탐색 도구입니다</span>
+      </footer>
+    </div>
+  );
+}
