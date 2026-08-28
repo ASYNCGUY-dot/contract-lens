@@ -97,6 +97,63 @@ function InputView({ text, setText, onRun, busy, err, apiUp }) {
   );
 }
 
+/**
+ * 결과를 사람이 읽을 수 있는 텍스트로 만든다.
+ *
+ * .txt 로 주는 이유는 어디서나 열리기 때문이다. 이 도구를 쓰는 사람은
+ * 법을 모르는 일반인이라 .md 나 .json 은 열어도 읽기 어렵다.
+ *
+ * **고지를 파일 안에도 넣는다.** 파일은 화면을 떠나 혼자 돌아다니고,
+ * 받은 사람은 이것이 무엇인지 모른 채 읽는다.
+ */
+function toText(data, laws) {
+  const L = [];
+  const line = "─".repeat(58);
+  L.push(`${NAME} (${SUB}) — 대조 결과`);
+  L.push(`생성 ${new Date().toLocaleString("ko-KR")}`);
+  L.push(line, data.고지, line, "");
+
+  data.조항.forEach((c) => {
+    const st = stateOf(c);
+    L.push(`■ ${c.조} ${c.제목 || ""}`.trimEnd());
+    L.push(`  ${c.본문}`);
+    L.push("");
+    if (st === "skip") {
+      L.push(`  · 대조하지 않음 — ${c.건너뜀}`);
+    } else if (st === "none") {
+      L.push("  · 관련 조문 없음 — 제7~14조와 관련이 뚜렷한 조문을 찾지 못했습니다.");
+    } else {
+      L.push(`  · 관련 있어 보이는 조문 ${c.후보.length}개 (순서는 정답 순서가 아닙니다)`);
+      c.후보.forEach((x) => {
+        L.push(`    [후보 ${x.순위}] ${x.인용} (${x.제목})`);
+        const a = laws?.[x.조];
+        if (a) {
+          L.push(`      ${a.본문}`);
+          a.호.forEach((h) => L.push(`        ${h.번호}. ${h.내용} [${h.효력}]`));
+        }
+      });
+    }
+    L.push("");
+  });
+
+  L.push(line, data.고지);
+  return L.join(String.fromCharCode(10));
+}
+
+function download(data, laws) {
+  const d = new Date();
+  const stamp = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+  const blob = new Blob([toText(data, laws)], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `계약서돋보기_결과_${stamp}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 function Summary({ data }) {
   const st = data.조항.map(stateOf);
   const items = [
@@ -195,6 +252,12 @@ function ResultView({ data, laws }) {
 
   return (
     <section className="wrap">
+      <div className="rowbetween resulthead">
+        <h2 className="h2">대조 결과</h2>
+        <button className="secondary" onClick={() => download(data, laws)}>
+          결과 내려받기 (.txt)
+        </button>
+      </div>
       <Summary data={data} />
 
       <div className="notice">

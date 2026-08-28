@@ -200,3 +200,28 @@ textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
   font-style: normal; font-size: 11px; color: var(--dim);
   border: 1px solid var(--line); border-radius: 999px; padding: 1px 7px; white-space: nowrap;
 }
+
+/* 결과 머리말 */
+.resulthead { margin-bottom: 14px; }
+.h2 { font-size: 19px; margin: 0; }
+.secondary {
+  border: 1px solid var(--line); background: var(--card); color: var(--fg);
+  padding: 8px 14px; border-radius: 9px; cursor: pointer; font: inherit; font-size: 13px;
+}
+.secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+@media (max-width: 560px) {
+  /* 후보 버튼이 3열이면 인용문이 눌려 두 줄로 접힌다(실측 136px).
+     좁은 화면에서는 '조문 원문 보기'를 아랫줄로 내려 인용문에 폭을 준다. */
+  .candbtn { grid-template-columns: auto 1fr; }
+  .chev {
+    grid-column: 1 / -1; grid-row: auto; justify-self: end;
+    margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--line); width: 100%;
+    text-align: right;
+  }
+  .resulthead { flex-wrap: wrap; gap: 10px; }
+  .secondary { width: 100%; }
+  /* 조문 원문의 호 목록도 효력 배지를 아래로 */
+  .arthos li { grid-template-columns: auto 1fr; }
+  .hoeff { grid-column: 2; justify-self: start; margin-top: 2px; }
+}
