@@ -99,7 +99,7 @@
 
 ```bash
 python -m venv .venv
-.venv\Scriptsctivate
+.venv\Scripts\activate      # macOS·Linux 는 source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
