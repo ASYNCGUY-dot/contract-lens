@@ -23,13 +23,15 @@ int8 양자화도 해봤지만 269MB 로 3MB 밖에 더 못 줄이면서 유사�
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
 import numpy as np
 
 ROOT = Path(__file__).resolve().parent.parent
-ONNX_DIR = ROOT / "models" / "onnx"
+# ONNX_INT8=1 이면 양자화본을 쓴다. 메모리는 줄지만 정확도가 떨어질 수 있어 실측 후 결정한다.
+ONNX_DIR = ROOT / "models" / ("onnx-int8" if os.getenv("ONNX_INT8") == "1" else "onnx")
 
 # sentence-transformers 는 모델이 정한 max_seq_length 로 자른다. ko-sroberta 는 128 이다.
 # 512 로 두면 긴 조항에서 더 많은 토큰을 보게 되어 **벡터가 달라진다.**
@@ -47,7 +49,8 @@ def _load():
         from transformers import AutoTokenizer
         if not ONNX_DIR.exists():
             raise SystemExit(f"[!] {ONNX_DIR} 가 없습니다. build_onnx.py 를 먼저 도세요.")
-        _sess = ort.InferenceSession(str(ONNX_DIR / "model.onnx"),
+        f = next(p for p in ONNX_DIR.glob("*.onnx"))
+        _sess = ort.InferenceSession(str(f),
                                      providers=["CPUExecutionProvider"])
         _tok = AutoTokenizer.from_pretrained(str(ONNX_DIR))
     return _sess, _tok

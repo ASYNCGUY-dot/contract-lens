@@ -91,6 +91,93 @@
 - 2026-08-23: 주제 확정, 법령 API 실측 완료.
   다음은 약관규제법 조문 구조화와 계약서 조항 분리 프로토타입.
 
+## 실행 방법
+
+파이썬 3.12, Node 20 이상에서 확인했다. 윈도우 기준으로 적었다.
+
+### 1. 설치
+
+```bash
+python -m venv .venv
+.venv\Scriptsctivate
+pip install -r requirements.txt
+```
+
+### 2. 모델 준비 (처음 한 번)
+
+임베딩 모델을 ONNX로 바꿔 둔다. **441MB라 리포에 넣지 않았다.**
+
+```bash
+python src/build_onnx.py
+```
+
+`models/onnx/`가 생긴다. 이 단계를 건너뛰어도 되는데, 그러면 torch로 모델을
+올리므로 메모리를 711MB 쓴다(ONNX는 650MB). 개발 중에는 어느 쪽이든 상관없다.
+
+### 3. API 서버
+
+```bash
+uvicorn src.api:app --port 8000
+```
+
+기동에 4초 정도 걸린다. 임베딩 모델을 시작할 때 한 번만 올리기 때문이다.
+`http://127.0.0.1:8000/docs`를 열면 API를 바로 시험해 볼 수 있다.
+
+ONNX로 돌리려면 `USE_ONNX=1`을 붙인다.
+
+### 4. 화면
+
+```bash
+cd web
+npm install
+npm run dev
+```
+
+`http://localhost:5173`이 열린다. API 서버가 떠 있어야 분석이 된다.
+안 떠 있으면 화면이 그 사실과 실행 명령을 알려 준다.
+
+### 5. 테스트
+
+```bash
+python tests/test_api.py
+```
+
+9개가 모두 통과해야 한다. pytest 없이도 돌아간다.
+
+```bash
+python -m pytest tests/ -v
+```
+
+### 환경변수
+
+`.env.example`을 `.env`로 복사해 채운다. **`.env`는 커밋하지 않는다.**
+
+| 이름 | 필요한 곳 | 없으면 |
+|---|---|---|
+| `LAW_OC` | 법령·판례 재수집 (`collect_cases.py` 등) | 이미 받아 둔 `data/`로 충분하다 |
+| `OPENAI_API_KEY` | LLM 구조 추출(선택 기능), 평가 도구 | 매칭과 화면은 그대로 동작한다 |
+
+**API 키가 없어도 핵심 기능은 전부 돌아간다.** 조항 대조와 조문 원문 보기는
+로컬 임베딩만 쓴다.
+
+### 데이터를 다시 만들려면
+
+`data/`는 이미 채워져 있어 아래를 돌릴 필요가 없다. 재현이 필요할 때만 쓴다.
+
+```bash
+python src/build_law_index.py      # 약관규제법 유형 28개
+python src/fetch_full_law.py       # 조문 전문 (조문 원문 보기에 쓴다)
+python src/collect_cases.py        # 판례 463건  (오래 걸린다)
+python src/collect_terms.py        # 표준약관 39건
+```
+
+### 성능을 다시 재려면
+
+```bash
+python src/score_eval_v2.py        # 표준약관 85개
+python src/score_eval_v3.py        # 판례 인용 조항 41개
+```
+
 ## 이 리포는 비공개다 — 공개용은 발표 후 따로 만든다
 
 2026-08-28 결정. **지금 리포를 그대로 공개하지 않는다.**
