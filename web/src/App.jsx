@@ -93,6 +93,19 @@ function InputView({ text, setText, onRun, busy, err, apiUp }) {
           <li>점수나 등급을 매기지 않습니다</li>
         </ul>
       </div>
+
+      <div className="card pad privacy">
+        <p className="lbl">붙여넣은 내용은 저장하지 않습니다</p>
+        <p>
+          입력한 약관은 대조에만 쓰이고 <b>파일이나 데이터베이스에 남기지 않습니다.</b>
+          서버 기록에도 본문은 남지 않습니다. 화면을 닫으면 결과도 사라지므로,
+          남겨 두시려면 결과 화면에서 내려받으세요.
+        </p>
+        <p className="small">
+          다만 시험용으로 만든 것이라 계약 당사자를 알아볼 수 있는 부분은
+          지우고 넣으시는 편이 안전합니다.
+        </p>
+      </div>
     </section>
   );
 }

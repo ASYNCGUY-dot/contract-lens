@@ -1,5 +1,9 @@
 // FastAPI 백엔드 호출. 개발 중에는 uvicorn 이 8000 포트에서 돈다.
-const BASE = import.meta.env.VITE_API_BASE ?? "http://127.0.0.1:8000";
+// 배포·터널에서는 화면과 API 가 같은 주소를 쓴다(FastAPI 가 화면까지 서빙).
+// 개발 중(Vite 5173)에만 8000 으로 보낸다.
+const BASE =
+  import.meta.env.VITE_API_BASE ??
+  (import.meta.env.DEV ? "http://127.0.0.1:8000" : "");
 
 export async function analyze(text) {
   const r = await fetch(`${BASE}/analyze`, {

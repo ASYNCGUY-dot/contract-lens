@@ -32,10 +32,15 @@ def test_health():
         assert r.status_code == 200 and r.json()["ok"] is True
 
 
-def test_root_carries_disclaimer():
-    """고지를 지우고 배포하는 사고를 막는다."""
+def test_api_root_carries_disclaimer():
+    """
+    고지를 지우고 배포하는 사고를 막는다.
+
+    `/` 는 화면(React 빌드)이 가져갔으므로 API 안내는 `/api` 다.
+    터널·배포에서 화면과 API 가 같은 주소를 쓰기 위한 구조다.
+    """
     with TestClient(app) as c:
-        assert "판정하지 않습니다" in c.get("/").json()["고지"]
+        assert "판정하지 않습니다" in c.get("/api").json()["고지"]
 
 
 def test_analyze_shape():

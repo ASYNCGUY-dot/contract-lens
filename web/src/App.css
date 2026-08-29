@@ -260,3 +260,10 @@ textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
   .terms dl > div { grid-template-columns: 1fr; gap: 2px; }
   .cguide { grid-column: 1 / -1; }
 }
+
+/* 개인정보 안내 — 실제 계약서를 넣는 사람에게 이게 없으면 못 쓴다 */
+.privacy { margin-top: 14px; }
+.privacy p { margin: 8px 0 0; font-size: 13.5px; line-height: 1.7; color: var(--dim); }
+.privacy p.lbl { color: var(--fg); font-size: 13px; margin: 0; }
+.privacy p.small { font-size: 12.5px; }
+.privacy b { color: var(--fg); font-weight: 600; }

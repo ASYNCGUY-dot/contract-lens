@@ -26,6 +26,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -99,7 +100,7 @@ class AnalyzeOut(BaseModel):
     고지: str
 
 
-@app.get("/")
+@app.get("/api")
 def root():
     return {"이름": "계약서 돋보기 (Contract Lens)",
             "설명": "약관 조항에 약관규제법 조문을 나란히 놓습니다. 판정하지 않습니다.",
@@ -195,3 +196,11 @@ def analyze(body: AnalyzeIn):
              for x in r["정렬"]],
         고지=고지,
     )
+
+
+# 화면(React 빌드)을 같은 서버에서 내보낸다. **라우트 정의 뒤에 마운트해야**
+# /analyze 같은 경로가 정적 파일 핸들러에 가려지지 않는다.
+# 빌드가 없으면 API 만 돈다 — 개발 중에는 Vite 가 화면을 맡는다.
+_WEB = ROOT / "web" / "dist"
+if _WEB.exists():
+    app.mount("/", StaticFiles(directory=str(_WEB), html=True), name="web")
