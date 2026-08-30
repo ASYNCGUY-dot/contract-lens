@@ -11,6 +11,7 @@ API가 실제로 도는지 재는 테스트. 서버를 띄우지 않고 TestClie
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -147,6 +148,53 @@ def test_rejects_empty_and_oversize():
     with TestClient(app) as c:
         assert c.post("/analyze", json={"text": "   "}).status_code == 400
         assert c.post("/analyze", json={"text": "가" * (MAX_CHARS + 1)}).status_code == 413
+
+
+def test_feedback_is_private():
+    """
+    후기 게시판의 전부는 **누가 무엇을 볼 수 있는가**다. 여기가 새면 기능 자체가
+    의미를 잃는다. 지인이 자기 계약서 이야기를 적을 텐데 남이 읽으면 안 된다.
+
+    비밀번호가 틀렸을 때 "틀렸다"고 알리지 않고 빈 목록을 주는 것도 확인한다.
+    남의 이름으로 비밀번호를 맞혀 보는 일을 조금이라도 어렵게 하기 위해서다.
+    """
+    import feedback as fb
+    old_db, old_key = fb.DB, os.environ.get("ADMIN_KEY")
+    fb.DB = ROOT / "data" / "_test_fb.db"
+    os.environ["ADMIN_KEY"] = "테스트-운영자-키"
+    try:
+        if fb.DB.exists():
+            fb.DB.unlink()
+        with TestClient(app) as c:
+            c.post("/feedback", json={"이름": "민수", "비밀번호": "1234",
+                                      "내용": "전세계약서를 넣어 봤습니다."})
+            c.post("/feedback", json={"이름": "지영", "비밀번호": "9999",
+                                      "내용": "결과가 엉뚱했어요."})
+
+            mine = c.post("/feedback/mine",
+                          json={"이름": "민수", "비밀번호": "1234"}).json()["목록"]
+            assert len(mine) == 1 and "전세계약서" in mine[0]["내용"]
+
+            # 비밀번호가 틀리면 빈 목록. 틀렸다고 알려 주지 않는다.
+            assert c.post("/feedback/mine",
+                          json={"이름": "민수", "비밀번호": "0000"}).json()["목록"] == []
+            # 남의 이름 + 내 비밀번호로도 안 된다
+            assert c.post("/feedback/mine",
+                          json={"이름": "민수", "비밀번호": "9999"}).json()["목록"] == []
+
+            # 운영자는 전부 본다
+            all_ = c.post("/feedback/all", json={"키": "테스트-운영자-키"})
+            assert all_.status_code == 200 and len(all_.json()["목록"]) == 2
+            # 키가 틀리면 막는다 (한글 키에서 터지지 않아야 한다)
+            assert c.post("/feedback/all", json={"키": "아무거나"}).status_code == 403
+    finally:
+        if fb.DB.exists():
+            fb.DB.unlink()
+        fb.DB = old_db
+        if old_key is None:
+            os.environ.pop("ADMIN_KEY", None)
+        else:
+            os.environ["ADMIN_KEY"] = old_key
 
 
 if __name__ == "__main__":

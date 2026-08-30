@@ -34,3 +34,7 @@ _items_v2.json
 
 # ONNX 변환 결과 (441MB). build_onnx.py 로 언제든 다시 만든다.
 models/
+
+# 후기 게시판 — 남의 글이다. 절대 커밋하지 않는다.
+data/feedback.db
+data/_fb_test.db

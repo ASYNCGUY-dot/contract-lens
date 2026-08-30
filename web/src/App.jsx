@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { analyze, articles, health } from "./api";
+import { addFeedback, allFeedback, analyze, articles, health, myFeedback } from "./api";
 import "./App.css";
 
 const NAME = "계약서 돋보기";
@@ -40,6 +40,9 @@ function Header({ tab, setTab, hasResult, dark, setDark }) {
                 className={tab === "result" ? "on" : ""}
                 disabled={!hasResult}
                 onClick={() => setTab("result")}>결과</button>
+        <button role="tab" aria-selected={tab === "feedback"}
+                className={tab === "feedback" ? "on" : ""}
+                onClick={() => setTab("feedback")}>후기</button>
       </nav>
       <button className="ghost" onClick={() => setDark(!dark)}
               aria-label={dark ? "밝은 화면으로" : "어두운 화면으로"}>
@@ -105,6 +108,9 @@ function InputView({ text, setText, onRun, busy, err, apiUp }) {
           다만 시험용으로 만든 것이라 계약 당사자를 알아볼 수 있는 부분은
           지우고 넣으시는 편이 안전합니다.
         </p>
+        <p className="small">
+          <b>후기 탭에 남기신 글은 저장됩니다.</b> 쓰신 분과 운영자만 볼 수 있습니다.
+        </p>
       </div>
     </section>
   );
@@ -165,6 +171,120 @@ function download(data, laws) {
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+}
+
+/**
+ * 후기 게시판. **작성자 본인과 운영자만 읽는다.**
+ *
+ * 로그인 체계를 만들지 않았다. 지인 몇 명이 쓰는 시험용이므로 이름과 비밀번호
+ * 네 자리면 충분하다. 비밀번호는 서버에서 해시로만 보관한다.
+ *
+ * 비밀번호가 틀리면 "틀렸다"고 알리지 않고 빈 목록을 준다. 남의 이름으로
+ * 비밀번호를 맞혀 보는 일을 조금이라도 어렵게 하기 위해서다.
+ */
+function FeedbackView() {
+  const [mode, setMode] = useState("write");
+  const [name, setName] = useState("");
+  const [pw, setPw] = useState("");
+  const [body, setBody] = useState("");
+  const [key, setKey] = useState("");
+  const [list, setList] = useState(null);
+  const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function run(fn, after) {
+    setBusy(true); setMsg("");
+    try { after(await fn()); }
+    catch (e) { setMsg(e.message); }
+    finally { setBusy(false); }
+  }
+
+  const canWrite = name && pw.length >= 4 && body.trim().length >= 5;
+  const canRead = name && pw.length >= 4;
+
+  return (
+    <section className="wrap narrow">
+      <h1 className="h1">써보시고 후기를 남겨 주세요</h1>
+      <p className="lead">
+        무엇이 도움이 됐는지, 어디가 엉뚱했는지 알려 주시면 고치는 데 씁니다.
+        <b> 남기신 글은 쓰신 분과 운영자만 볼 수 있습니다.</b>
+      </p>
+
+      <div className="filters">
+        {[["write", "후기 남기기"], ["mine", "내 후기 보기"], ["admin", "운영자"]].map(([k, l]) => (
+          <button key={k} className={mode === k ? "on" : ""}
+                  onClick={() => { setMode(k); setList(null); setMsg(""); }}>{l}</button>
+        ))}
+      </div>
+
+      <div className="card pad">
+        {mode !== "admin" ? (
+          <>
+            <div className="fbrow">
+              <label>이름 또는 별명
+                <input value={name} onChange={(e) => setName(e.target.value)}
+                       maxLength={20} placeholder="예: 민수" />
+              </label>
+              <label>비밀번호 (4자 이상)
+                <input type="password" value={pw} onChange={(e) => setPw(e.target.value)}
+                       maxLength={32} placeholder="내 글을 다시 볼 때 씁니다" />
+              </label>
+            </div>
+            {mode === "write" && (
+              <>
+                <label className="lbl" htmlFor="fb">후기</label>
+                <textarea id="fb" rows={6} value={body} maxLength={4000}
+                          onChange={(e) => setBody(e.target.value)}
+                          placeholder="어떤 계약서를 넣어 보셨는지, 결과가 맞았는지, 화면에서 불편했던 점 등" />
+              </>
+            )}
+            <div className="rowend">
+              <button className="primary"
+                      disabled={busy || (mode === "write" ? !canWrite : !canRead)}
+                      onClick={() => mode === "write"
+                        ? run(() => addFeedback(name, pw, body), () => {
+                            setBody("");
+                            setMsg("남겨 주셔서 고맙습니다. 내 후기 보기에서 다시 볼 수 있습니다.");
+                          })
+                        : run(() => myFeedback(name, pw), (d) => {
+                            setList(d.목록);
+                            if (!d.목록.length) setMsg("해당하는 글이 없습니다. 이름과 비밀번호를 확인해 주세요.");
+                          })}>
+                {busy ? "잠시만요…" : mode === "write" ? "후기 남기기" : "내 후기 불러오기"}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <label className="lbl" htmlFor="ak">운영자 키</label>
+            <input id="ak" type="password" value={key} onChange={(e) => setKey(e.target.value)}
+                   placeholder="ADMIN_KEY" />
+            <div className="rowend">
+              <button className="primary" disabled={busy || !key}
+                      onClick={() => run(() => allFeedback(key), (d) => setList(d.목록))}>
+                {busy ? "잠시만요…" : "전체 후기 보기"}
+              </button>
+            </div>
+          </>
+        )}
+        {msg && <p className="note">{msg}</p>}
+      </div>
+
+      {list?.length > 0 && (
+        <div className="fblist">
+          <p className="lbl">{list.length}건</p>
+          {list.map((f) => (
+            <div key={f.id} className="card pad fbitem">
+              <div className="rowbetween small">
+                <b>{f.이름}</b><span>{f.작성.slice(0, 16).replace("T", " ")}</span>
+              </div>
+              <p>{f.내용}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
 }
 
 function Summary({ data }) {
@@ -381,7 +501,8 @@ export default function App() {
     <div className="app">
       <Header tab={tab} setTab={setTab} hasResult={!!data} dark={dark} setDark={setDark} />
       <main>
-        {tab === "input"
+        {tab === "feedback" ? <FeedbackView />
+          : tab === "input"
           ? <InputView text={text} setText={setText} onRun={run}
                        busy={busy} err={err} apiUp={apiUp} />
           : data && <ResultView data={data} laws={laws} />}

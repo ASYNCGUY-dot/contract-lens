@@ -267,3 +267,16 @@ textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 .privacy p.lbl { color: var(--fg); font-size: 13px; margin: 0; }
 .privacy p.small { font-size: 12.5px; }
 .privacy b { color: var(--fg); font-weight: 600; }
+
+/* 후기 게시판 */
+.fbrow { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+.fbrow label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; }
+.fbrow input, #ak {
+  padding: 10px 12px; border-radius: 9px; border: 1px solid var(--line);
+  background: var(--bg); color: var(--fg); font: inherit; font-weight: 400;
+}
+#ak { width: 100%; margin-top: 8px; }
+.fbrow input:focus, #ak:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.fblist { margin-top: 18px; display: flex; flex-direction: column; gap: 10px; }
+.fbitem p { margin: 10px 0 0; font-size: 14px; line-height: 1.75; white-space: pre-wrap; }
+@media (max-width: 560px) { .fbrow { grid-template-columns: 1fr; } }

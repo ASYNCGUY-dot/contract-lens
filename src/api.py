@@ -8,6 +8,9 @@
 
     POST /analyze   {"text": "제1조 (목적) ..."}   조항별 관련 조문
     GET  /articles  약관규제법 제7~14조 원문 (조 본문 + 각 호)
+    POST /feedback       후기 남기기
+    POST /feedback/mine  내 후기 보기 (이름 + 비밀번호)
+    POST /feedback/all   전체 보기 (운영자 키)
     GET  /health    모델 적재 상태
     GET  /          사용법
 
@@ -168,6 +171,49 @@ def _articles() -> dict:
 def articles():
     """조문은 바뀌지 않으므로 화면에서 한 번만 받아 캐시하면 된다."""
     return _articles()
+
+
+class FeedbackIn(BaseModel):
+    이름: str = Field(..., min_length=1, max_length=20)
+    비밀번호: str = Field(..., min_length=4, max_length=32)
+    내용: str = Field(..., min_length=5, max_length=4000)
+
+
+class FeedbackAuth(BaseModel):
+    이름: str = Field(..., min_length=1, max_length=20)
+    비밀번호: str = Field(..., min_length=1, max_length=32)
+
+
+class AdminAuth(BaseModel):
+    키: str = Field(..., min_length=1, max_length=128)
+
+
+@app.post("/feedback")
+def feedback_add(b: FeedbackIn):
+    """
+    후기를 남긴다. **작성자 본인과 운영자만 읽을 수 있다.**
+
+    대조에 넣은 약관 본문은 저장하지 않는다. 저장하는 것은 이 후기뿐이다.
+    """
+    from feedback import add
+    return {"id": add(b.이름, b.비밀번호, b.내용),
+            "안내": "작성자 본인과 운영자만 볼 수 있습니다."}
+
+
+@app.post("/feedback/mine")
+def feedback_mine(b: FeedbackAuth):
+    """이름과 비밀번호가 맞는 글만. 틀리면 빈 목록이다 — 틀렸다고 알려주지 않는다."""
+    from feedback import mine
+    return {"목록": mine(b.이름, b.비밀번호)}
+
+
+@app.post("/feedback/all")
+def feedback_all(b: AdminAuth):
+    from feedback import all_of
+    r = all_of(b.키)
+    if r is None:
+        raise HTTPException(403, "운영자 키가 맞지 않습니다.")
+    return {"목록": r}
 
 
 @app.get("/health")

@@ -33,6 +33,24 @@ export async function articles() {
   return _articles;
 }
 
+async function post(path, body) {
+  const r = await fetch(`${BASE}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) {
+    let msg = `서버가 ${r.status} 를 돌려주었습니다.`;
+    try { const d = await r.json(); if (typeof d.detail === "string") msg = d.detail; } catch {}
+    throw new Error(msg);
+  }
+  return r.json();
+}
+
+export const addFeedback = (이름, 비밀번호, 내용) => post("/feedback", { 이름, 비밀번호, 내용 });
+export const myFeedback = (이름, 비밀번호) => post("/feedback/mine", { 이름, 비밀번호 });
+export const allFeedback = (키) => post("/feedback/all", { 키 });
+
 export async function health() {
   try {
     const r = await fetch(`${BASE}/health`);
