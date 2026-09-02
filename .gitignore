@@ -38,3 +38,6 @@ models/
 # 후기 게시판 — 남의 글이다. 절대 커밋하지 않는다.
 data/feedback.db
 data/_fb_test.db
+
+# 터널 실행 파일 (53MB). 공식 저장소에서 다시 받으면 된다.
+tools/cloudflared.exe

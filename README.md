@@ -148,6 +148,24 @@ python tests/test_api.py
 python -m pytest tests/ -v
 ```
 
+### 지인에게 링크를 보내려면
+
+```powershell
+.\서비스_켜기.ps1
+```
+
+서버와 터널을 함께 띄우고 `trycloudflare.com` 주소를 알려 준다. 그 주소를
+지인에게 보내면 바로 쓸 수 있다.
+
+**이 창을 닫으면 서비스가 꺼지고 주소도 사라진다.** 다시 켜면 주소가 바뀌므로,
+"오늘 저녁까지 열어 둘게" 식으로 시간을 정해 공유하는 편이 낫다.
+
+터널 실행 파일은 `tools/cloudflared.exe` 에 둔다(53MB, 리포에는 넣지 않는다).
+없으면 [Cloudflare 공식 저장소](https://github.com/cloudflare/cloudflared/releases/latest)에서
+`cloudflared-windows-amd64.exe` 를 받아 그 이름으로 두면 된다.
+
+후기는 화면의 **[후기] 탭 → [운영자]** 에서 `.env` 의 `ADMIN_KEY` 로 볼 수 있다.
+
 ### 환경변수
 
 `.env.example`을 `.env`로 복사해 채운다. **`.env`는 커밋하지 않는다.**
