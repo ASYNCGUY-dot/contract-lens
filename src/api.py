@@ -30,10 +30,15 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+# 서버가 .env 를 직접 읽어야 한다. uvicorn 으로 띄우면 아무도 대신 읽어 주지 않아
+# ADMIN_KEY 를 넣어도 후기 게시판의 운영자 보기가 동작하지 않는다.
+load_dotenv(ROOT / ".env")
 
 MAX_CHARS = 200_000        # A4 약 60장. 이보다 크면 거절한다.
 LAW_FULL = ROOT / "data" / "laws" / "약관규제법_전문.json"
