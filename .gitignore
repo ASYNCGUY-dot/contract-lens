@@ -41,3 +41,8 @@ data/_fb_test.db
 
 # 터널 실행 파일 (53MB). 공식 저장소에서 다시 받으면 된다.
 tools/cloudflared.exe
+
+# 판례 본문 (7.5MB). 저작권법상 판례 자체는 보호 대상이 아니나
+# 법제처 API 이용약관의 재배포 조항을 확인하지 않았으므로 공개 리포에
+# 넣지 않는다. collect_cases.py 로 다시 받는다.
+data/cases/bodies.jsonl
