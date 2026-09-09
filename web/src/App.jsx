@@ -93,24 +93,54 @@ async function 두배로(file) {
 }
 
 /**
+ * 읽어낸 조 번호 중 중간에 빠진 것을 찾는다.
+ *
+ * 개수만 세면 "원본에 열 개인데 네 개만 읽었다"를 알 수 없다. 원본을 모르기
+ * 때문이다. 다만 번호가 이어지는지는 볼 수 있다 — 제1·4조만 읽혔다면 그
+ * 사이의 제2·3조는 원본에 있었는데 못 읽었을 가능성이 크다.
+ */
+function 빠진조(nums) {
+  if (nums.length < 2) return [];
+  const out = [];
+  for (let i = Math.min(...nums); i <= Math.max(...nums); i++) {
+    if (!nums.includes(i)) out.push(i);
+  }
+  return out;
+}
+
+/**
  * 인식이 쓸 만한지 판단한다.
  *
- * **신뢰도만 보면 안 된다.** 실측에서 나쁜 사진을 키웠더니 신뢰도가 27 에서 51 로
- * 올랐는데 조 번호는 여전히 하나도 못 살렸다. 조 번호는 한 글자라, 그것이 틀리면
- * 그 조항이 통째로 앞 조항에 붙어 대조 자체가 어긋난다. 그래서 조 번호 개수를
- * 먼저 보고 신뢰도는 참고로만 쓴다.
+ * **신뢰도를 주 신호로 쓰면 안 된다.** 표본 9개로 재보니 전체 상관은 0.879 로
+ * 높아 보이지만 그것은 신뢰도 13·27 같은 극단이 만든 값이고, 정작 판단이 필요한
+ * 40~80 구간만 보면 0.432 로 약하다. 실제로 신뢰도 66 인 두 사진의 글자 정확도가
+ * 95.2% 와 74.4% 로 20.8%p 갈렸다. 극단에서 "확실히 나쁘다"는 말만 할 수 있다.
+ *
+ * 그래서 조 번호를 본다. 조 번호는 조항 분리기가 실제로 쓰는 것이고 한 글자라,
+ * 틀리면 그 조항이 통째로 앞 조항에 붙어 대조 자체가 어긋난다. 개수와 연속성
+ * 두 가지를 본다.
+ *
+ * **본문이 틀린 것은 원리적으로 못 잡는다.** 원본을 모르므로 "책임을 진다"가
+ * "책임을 지지 않는다"로 읽혀도 알 수 없다. 사람이 확인하는 단계가 선택이 아니라
+ * 필수인 이유다.
  */
-function 인식평가(조수, conf) {
+function 인식평가(조수, conf, 빠짐) {
   if (조수 === 0) {
     return ["bad", "조 번호(제1조, 제2조 …)를 하나도 찾지 못했습니다. 글자가 크게 나오도록 " +
                    "가까이서 다시 찍거나, 아래 칸에 직접 붙여넣어 주세요."];
   }
-  if (conf >= 70) {
-    return ["ok", "조항 " + 조수 + "개를 찾았습니다. 원본과 개수가 같은지, 글자가 맞는지 " +
-                  "한 번 훑어봐 주세요."];
+  if (빠짐.length) {
+    const 목록 = 빠짐.slice(0, 5).map((n) => "제" + n + "조").join(", ");
+    return ["warn", "조항 " + 조수 + "개를 찾았는데 그 사이에 " + 목록 +
+                    (빠짐.length > 5 ? " 등" : "") + "이(가) 안 보입니다. " +
+                    "원본에 있는데 못 읽었을 수 있으니 확인해 주세요."];
   }
-  return ["warn", "조항 " + 조수 + "개를 찾았습니다. 다만 군데군데 틀렸을 수 있으니 " +
-                  "원본과 대조해 고쳐 주세요. 특히 빠진 조항이 없는지 보세요."];
+  if (conf >= 70) {
+    return ["ok", "조항 " + 조수 + "개를 찾았고 번호도 이어집니다. 그래도 원본과 개수가 같은지, " +
+                  "글자가 맞는지 한 번 훑어봐 주세요."];
+  }
+  return ["warn", "조항 " + 조수 + "개를 찾았습니다. 다만 글자가 군데군데 틀렸을 수 있으니 " +
+                  "원본과 대조해 고쳐 주세요."];
 }
 
 function PhotoInput({ onText, disabled }) {
@@ -146,11 +176,15 @@ function PhotoInput({ onText, disabled }) {
       await worker.terminate();
       const text = parts.join(String.fromCharCode(10, 10));
       onText(text);
+      // 조항 분리기가 쓰는 것과 같은 규칙으로 번호를 뽑는다
+      const nums = [...new Set(
+        [...text.matchAll(/제\s*(\d+)\s*조/g)].map((m) => Number(m[1]))
+      )].sort((a, b) => a - b);
       setDone({
         conf: Math.round(sum / files.length),
         n: files.length,
-        // 조항 분리기가 쓰는 것과 같은 규칙으로 센다
-        조수: (text.match(/제\s*\d+\s*조/g) || []).length,
+        조수: nums.length,
+        빠짐: 빠진조(nums),
       });
     } catch (e) {
       setErr("글자를 읽지 못했습니다. " + (e && e.message ? e.message : ""));
@@ -159,7 +193,7 @@ function PhotoInput({ onText, disabled }) {
     }
   }
 
-  const [tone, msg] = done ? 인식평가(done.조수, done.conf) : [];
+  const [tone, msg] = done ? 인식평가(done.조수, done.conf, done.빠짐) : [];
 
   return (
     <div className="ocr">
