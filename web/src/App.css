@@ -301,3 +301,10 @@ textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 .ocrmsg.ok   { border-color: var(--accent); }
 .ocrmsg.warn { border-color: var(--dim); }
 .ocrmsg.bad  { border-color: var(--dim); background: var(--bg); }
+
+/* 폰에서는 버튼과 안내가 한 줄에 못 들어간다. 세로로 쌓고 버튼을 넓힌다. */
+@media (max-width: 560px) {
+  .ocr .rowbetween { flex-direction: column; align-items: stretch; gap: 7px; }
+  .ocrbtn { width: 100%; text-align: center; padding: 11px 14px; }
+  .ocr .rowbetween .small { text-align: center; }
+}

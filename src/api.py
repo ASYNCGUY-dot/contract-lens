@@ -78,6 +78,27 @@ app.add_middleware(
 )
 
 
+@app.middleware("http")
+async def _cache_headers(request, call_next):
+    """정적 파일의 캐시 수명을 정한다.
+
+    StaticFiles 는 Cache-Control 을 주지 않는다. 그러면 브라우저가 알아서
+    캐시하는데, 하필 index.html 까지 캐시돼서 **화면을 새로 배포해도 옛
+    자산을 계속 부른다.** 실제로 겪었다 — CSS 를 고쳐 빌드했는데 브라우저는
+    이전 해시의 CSS 를 물고 있었다.
+
+    자산 파일명에는 내용 해시가 붙으므로 영구 캐시해도 안전하다. 반대로
+    index.html 은 그 해시를 가리키는 지도이므로 매번 검증해야 한다.
+    """
+    resp = await call_next(request)
+    p = request.url.path
+    if p.startswith("/assets/"):
+        resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    elif p == "/" or p.endswith(".html"):
+        resp.headers["Cache-Control"] = "no-cache"
+    return resp
+
+
 class AnalyzeIn(BaseModel):
     text: str = Field(..., description="약관 전문. 조항이 줄바꿈으로 나뉘어 있어야 한다.")
     llm: bool = Field(False, description="구조 추출까지 할지. 켜면 느리고 비용이 든다.")

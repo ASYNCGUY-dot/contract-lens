@@ -5,6 +5,8 @@ import "./App.css";
 const NAME = "계약서 돋보기";
 const SUB = "Contract Lens";
 const MAX = 200000;
+const MAX_SHOTS = 10;                    // 한 번에 읽을 사진 수
+const MAX_SHOT_BYTES = 15 * 1024 * 1024; // 장당 크기. 요즘 폰 사진이 3~5MB 다.
 
 const SAMPLE = `제1조 (목적) 이 약관은 회사가 제공하는 서비스의 이용조건을 정함을 목적으로 한다.
 제2조 (면책) 회사는 회원에게 발생한 어떠한 손해에 대하여도 일체 책임을 지지 아니한다.
@@ -154,11 +156,34 @@ function PhotoInput({ onText, disabled }) {
   // 복사해 넘긴다.
   async function read(files) {
     if (!files || !files.length) return;
+
+    // 사진 한 장이 수십 MB 인 폰이 흔하다. 제한이 없으면 브라우저가 멎는다.
+    if (files.length > MAX_SHOTS) {
+      setErr("한 번에 " + MAX_SHOTS + "장까지 읽습니다. 나눠서 올려 주세요.");
+      return;
+    }
+    const 큰것 = files.find((f) => f.size > MAX_SHOT_BYTES);
+    if (큰것) {
+      setErr("사진 한 장이 " + Math.round(MAX_SHOT_BYTES / 1024 / 1024) +
+             "MB 를 넘습니다 (" + (큰것.size / 1024 / 1024).toFixed(1) + "MB). " +
+             "폰 설정에서 화질을 낮추거나 잘라서 올려 주세요.");
+      return;
+    }
+    // 아이폰 기본 형식인 HEIC 는 브라우저가 디코딩하지 못한다. 먼저 걸러
+    // 무슨 일인지 알려 준다 — 그냥 두면 인식 실패로만 보인다.
+    const heic = files.find((f) => /\.(heic|heif)$/i.test(f.name));
+    if (heic) {
+      setErr("HEIC 사진은 브라우저가 읽지 못합니다. 아이폰이라면 " +
+             "설정 → 카메라 → 포맷을 '높은 호환성'으로 바꾸거나, JPG 로 바꿔 올려 주세요.");
+      return;
+    }
+
     setBusy(true); setErr(""); setDone(null);
+    let worker = null;
     try {
       setProgress("글자 인식기를 준비하는 중… 처음 한 번은 20초쯤 걸립니다");
       const { createWorker } = await import("tesseract.js");
-      const worker = await createWorker("kor", 1, {
+      worker = await createWorker("kor", 1, {
         logger: (m) => {
           if (m.status === "recognizing text") {
             setProgress("읽는 중… " + Math.round(m.progress * 100) + "%");
@@ -173,7 +198,6 @@ function PhotoInput({ onText, disabled }) {
         parts.push(data.text.trim());
         sum += data.confidence;
       }
-      await worker.terminate();
       const text = parts.join(String.fromCharCode(10, 10));
       onText(text);
       // 조항 분리기가 쓰는 것과 같은 규칙으로 번호를 뽑는다
@@ -189,6 +213,9 @@ function PhotoInput({ onText, disabled }) {
     } catch (e) {
       setErr("글자를 읽지 못했습니다. " + (e && e.message ? e.message : ""));
     } finally {
+      // 인식이 실패해도 반드시 정리한다. tesseract 는 Web Worker 와 WASM 을
+      // 함께 올리므로, 실패할 때마다 남겨 두면 메모리가 쌓인다.
+      if (worker) { try { await worker.terminate(); } catch {} }
       setBusy(false); setProgress("");
     }
   }
