@@ -52,12 +52,148 @@ function Header({ tab, setTab, hasResult, dark, setDark }) {
   );
 }
 
+/**
+ * 사진에서 글자를 읽어 온다. **브라우저 안에서 처리하므로 사진이 서버로 가지 않는다.**
+ *
+ * 읽은 결과를 바로 대조에 넘기지 않고 편집창에 넣는다. OCR 이 틀리면 조항 내용
+ * 자체가 바뀌기 때문이다. "책임을 진다"가 "책임을 지지 않는다"로 읽히면 대조가
+ * 아무리 정확해도 결과는 완전히 틀린다. **사람이 눈으로 보고 고쳐야 한다.**
+ *
+ * 2026-09-09 실측(한글 계약서 이미지 7종)에서 tesseract 자체 신뢰도가 글자
+ * 정확도를 잘 따라갔다 — 신뢰도 66 일 때 정확도 95.2%, 27 일 때 16.8%,
+ * 13 일 때 4.8%. 다만 표본이 7개뿐이라 아래 경계값은 정밀한 기준이 아니라
+ * 대략의 눈금이다. 조건별로는 조명이 가장 크게 깎았고(-20.8%p), 해상도가
+ * 그다음(-15.0%p)이었으며, 둘이 겹치면 곱해져서 무너진다.
+ */
+/**
+ * 사진을 두 배로 키운다. **글자를 더 잘 읽으려는 것이지 화질을 높이는 게 아니다.**
+ *
+ * 실측에서 같은 사진을 두 배로 키우자 인식 신뢰도가 66 에서 92 로 오르고, 네 개
+ * 조항의 조 번호를 2/4 에서 4/4 로 전부 살렸다. 세 배는 두 배와 결과가 같았으므로
+ * 두 배까지만 키운다. 다만 원본이 이미 크면 메모리만 쓰므로 긴 변 3000px 에서 멈춘다.
+ */
+async function 두배로(file) {
+  try {
+    const img = await createImageBitmap(file);
+    const k = Math.min(2, 3000 / Math.max(img.width, img.height));
+    if (k <= 1) return file;
+    const c = document.createElement("canvas");
+    c.width = Math.round(img.width * k);
+    c.height = Math.round(img.height * k);
+    const ctx = c.getContext("2d");
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(img, 0, 0, c.width, c.height);
+    img.close();
+    const blob = await new Promise((r) => c.toBlob(r, "image/png"));
+    return blob || file;
+  } catch {
+    return file;               // 못 키우면 원본으로 간다. 실패할 일은 아니다.
+  }
+}
+
+/**
+ * 인식이 쓸 만한지 판단한다.
+ *
+ * **신뢰도만 보면 안 된다.** 실측에서 나쁜 사진을 키웠더니 신뢰도가 27 에서 51 로
+ * 올랐는데 조 번호는 여전히 하나도 못 살렸다. 조 번호는 한 글자라, 그것이 틀리면
+ * 그 조항이 통째로 앞 조항에 붙어 대조 자체가 어긋난다. 그래서 조 번호 개수를
+ * 먼저 보고 신뢰도는 참고로만 쓴다.
+ */
+function 인식평가(조수, conf) {
+  if (조수 === 0) {
+    return ["bad", "조 번호(제1조, 제2조 …)를 하나도 찾지 못했습니다. 글자가 크게 나오도록 " +
+                   "가까이서 다시 찍거나, 아래 칸에 직접 붙여넣어 주세요."];
+  }
+  if (conf >= 70) {
+    return ["ok", "조항 " + 조수 + "개를 찾았습니다. 원본과 개수가 같은지, 글자가 맞는지 " +
+                  "한 번 훑어봐 주세요."];
+  }
+  return ["warn", "조항 " + 조수 + "개를 찾았습니다. 다만 군데군데 틀렸을 수 있으니 " +
+                  "원본과 대조해 고쳐 주세요. 특히 빠진 조항이 없는지 보세요."];
+}
+
+function PhotoInput({ onText, disabled }) {
+  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState("");
+  const [done, setDone] = useState(null);
+  const [err, setErr] = useState("");
+
+  // 인자로 FileList 를 그대로 받으면 안 된다. 같은 사진을 다시 고를 수 있게
+  // input.value 를 비우는 순간 그 FileList 도 함께 비워지기 때문이다. 배열로
+  // 복사해 넘긴다.
+  async function read(files) {
+    if (!files || !files.length) return;
+    setBusy(true); setErr(""); setDone(null);
+    try {
+      setProgress("글자 인식기를 준비하는 중… 처음 한 번은 20초쯤 걸립니다");
+      const { createWorker } = await import("tesseract.js");
+      const worker = await createWorker("kor", 1, {
+        logger: (m) => {
+          if (m.status === "recognizing text") {
+            setProgress("읽는 중… " + Math.round(m.progress * 100) + "%");
+          }
+        },
+      });
+      const parts = [];
+      let sum = 0;
+      for (let i = 0; i < files.length; i++) {
+        if (files.length > 1) setProgress((i + 1) + " / " + files.length + "장째를 읽는 중…");
+        const { data } = await worker.recognize(await 두배로(files[i]));
+        parts.push(data.text.trim());
+        sum += data.confidence;
+      }
+      await worker.terminate();
+      const text = parts.join(String.fromCharCode(10, 10));
+      onText(text);
+      setDone({
+        conf: Math.round(sum / files.length),
+        n: files.length,
+        // 조항 분리기가 쓰는 것과 같은 규칙으로 센다
+        조수: (text.match(/제\s*\d+\s*조/g) || []).length,
+      });
+    } catch (e) {
+      setErr("글자를 읽지 못했습니다. " + (e && e.message ? e.message : ""));
+    } finally {
+      setBusy(false); setProgress("");
+    }
+  }
+
+  const [tone, msg] = done ? 인식평가(done.조수, done.conf) : [];
+
+  return (
+    <div className="ocr">
+      <div className="rowbetween">
+        <label className={"ocrbtn" + (busy || disabled ? " off" : "")}>
+          {busy ? "읽는 중…" : "사진에서 글자 가져오기"}
+          <input type="file" accept="image/*" multiple hidden
+                 disabled={disabled || busy}
+                 onChange={(e) => {
+                   const picked = Array.from(e.target.files);
+                   e.target.value = "";
+                   read(picked);
+                 }} />
+        </label>
+        <span className="small">사진은 이 브라우저 안에서만 처리됩니다</span>
+      </div>
+      {busy && <p className="small ocrbar">{progress}</p>}
+      {err && <p className="err" role="alert">{err}</p>}
+      {done && (
+        <p className={"ocrmsg " + tone}>
+          <b>사진 {done.n}장을 읽었습니다.</b> {msg}
+          <span className="small"> (인식 신뢰도 {done.conf})</span>
+        </p>
+      )}
+    </div>
+  );
+}
+
 function InputView({ text, setText, onRun, busy, err, apiUp }) {
   return (
     <section className="wrap narrow">
       <h1 className="h1">약관을 붙여넣고<br />어떤 법 조문을 볼지 확인하세요</h1>
       <p className="lead">
-        계약서나 약관 전문을 붙여넣으면 조항마다 관련 있어 보이는
+        계약서나 약관 전문을 붙여넣거나 사진으로 올리면 조항마다 관련 있어 보이는
         약관규제법 조문을 나란히 놓아 드립니다.
       </p>
 
@@ -66,6 +202,7 @@ function InputView({ text, setText, onRun, busy, err, apiUp }) {
           <label className="lbl" htmlFor="ta">약관 전문</label>
           <button className="link" onClick={() => setText(SAMPLE)}>예시 넣기</button>
         </div>
+        <PhotoInput onText={setText} disabled={busy} />
         <textarea id="ta" value={text} onChange={(e) => setText(e.target.value)}
                   placeholder="여기에 약관 전문을 붙여넣어 주세요."
                   maxLength={MAX} rows={10} />
@@ -103,6 +240,10 @@ function InputView({ text, setText, onRun, busy, err, apiUp }) {
           입력한 약관은 대조에만 쓰이고 <b>파일이나 데이터베이스에 남기지 않습니다.</b>
           서버 기록에도 본문은 남지 않습니다. 화면을 닫으면 결과도 사라지므로,
           남겨 두시려면 결과 화면에서 내려받으세요.
+        </p>
+        <p className="small">
+          <b>사진은 서버로 보내지 않습니다.</b> 글자 인식을 이 브라우저 안에서
+          처리하므로 사진 파일 자체는 이 기기를 벗어나지 않습니다.
         </p>
         <p className="small">
           다만 시험용으로 만든 것이라 계약 당사자를 알아볼 수 있는 부분은

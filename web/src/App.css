@@ -280,3 +280,24 @@ textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 .fblist { margin-top: 18px; display: flex; flex-direction: column; gap: 10px; }
 .fbitem p { margin: 10px 0 0; font-size: 14px; line-height: 1.75; white-space: pre-wrap; }
 @media (max-width: 560px) { .fbrow { grid-template-columns: 1fr; } }
+
+/* 사진에서 글자 가져오기 ------------------------------------------------ */
+.ocr { margin-bottom: 10px; }
+.ocrbtn {
+  display: inline-block; padding: 7px 14px; border-radius: 7px;
+  border: 1px solid var(--line); background: var(--card);
+  font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.ocrbtn:hover { border-color: var(--accent); color: var(--accent); }
+.ocrbtn.off { opacity: .55; cursor: default; }
+.ocrbtn.off:hover { border-color: var(--line); color: inherit; }
+.ocrbar { margin: 8px 0 0; color: var(--dim); }
+.ocrmsg {
+  margin: 9px 0 0; padding: 9px 12px; border-radius: 7px;
+  font-size: 13px; line-height: 1.65; border: 1px solid var(--line);
+  background: var(--card);
+}
+/* 색은 경고가 아니라 구분용이다. 빨강은 쓰지 않는다. */
+.ocrmsg.ok   { border-color: var(--accent); }
+.ocrmsg.warn { border-color: var(--dim); }
+.ocrmsg.bad  { border-color: var(--dim); background: var(--bg); }
